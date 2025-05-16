@@ -1,23 +1,26 @@
-import os
-from flask import Flask, request
 import requests
-
-TELEGRAM_TOKEN = os.environ.get("Telegramtoken")
-URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+from flask import Flask, request
 
 app = Flask(__name__)
 
-@app.route('/', methods=["POST", "GET"])
-def index():
-    if request.method == "POST":
-        data = request.get_json()
-        if "message" in data:
-            chat_id = data["message"]["chat"]["id"]
-            print(f"Chat ID detectado: {chat_id}")
-            text = "Este es tu chat ID: " + str(chat_id)
-            requests.post(URL, data={"chat_id": chat_id, "text": text})
-        return "ok"
-    return "Bot en funcionamiento."
+TOKEN = "TELEGRAMTOKEN"  # Usa tu variable de entorno real aquí si estás leyendo con os.environ
+URL = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
+
+@app.route('/')
+def home():
+    return "Bot activo"
+
+@app.route('/check')
+def check_updates():
+    r = requests.get(URL)
+    data = r.json()
+
+    if "result" in data:
+        for update in data["result"]:
+            if "message" in update:
+                chat = update["message"]["chat"]
+                return f"Chat ID detectado: {chat['id']} - Nombre: {chat.get('title') or chat.get('first_name')}"
+    return "No hay mensajes recientes"
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
