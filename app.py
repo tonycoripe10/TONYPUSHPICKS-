@@ -7,7 +7,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 API_KEY = os.environ['APIkey']
-TELEGRAM_TOKEN = os.environ['Tokentelegram']
+TELEGRAM_TOKEN = os.environ['Telegramtoken']
 CHAT_ID = os.environ['Chatid']
 URL_TELEGRAM = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
