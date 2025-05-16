@@ -1,26 +1,55 @@
 import requests
-from flask import Flask, request
+import time
+import os
+from flask import Flask
+from threading import Thread
+
+# Datos del entorno
+API_KEY = os.getenv("APIkey")
+TELEGRAM_TOKEN = os.getenv("Telegramtoken")
+CHAT_ID = os.getenv("Chatid")
 
 app = Flask(__name__)
+eventos_reportados = set()
 
-TOKEN = "TELEGRAMTOKEN"  # Usa tu variable de entorno real aquí si estás leyendo con os.environ
-URL = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
+# Ligas de interés incluyendo Copa Libertadores
+LIGAS_IDS = [
+    39,   # Premier League
+    140,  # La Liga
+    135,  # Serie A
+    78,   # Bundesliga
+    61,   # Ligue 1
+    94,   # Primeira Liga
+    88,   # Eredivisie
+    128,  # Liga Argentina
+    71,   # Brasileirão
+    62,   # Liga Colombiana
+    135,  # Serie A
+    262,  # Liga MX
+    13    # Copa Libertadores
+]
 
-@app.route('/')
-def home():
-    return "Bot activo"
+def enviar_mensaje(texto):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    data = {"chat_id": CHAT_ID, "text": texto}
+    try:
+        requests.post(url, data=data)
+    except Exception as e:
+        print("Error al enviar mensaje:", e)
 
-@app.route('/check')
-def check_updates():
-    r = requests.get(URL)
-    data = r.json()
+def revisar_eventos():
+    url = "https://v3.football.api-sports.io/fixtures"
+    headers = {"x-apisports-key": API_KEY}
 
-    if "result" in data:
-        for update in data["result"]:
-            if "message" in update:
-                chat = update["message"]["chat"]
-                return f"Chat ID detectado: {chat['id']} - Nombre: {chat.get('title') or chat.get('first_name')}"
-    return "No hay mensajes recientes"
+    for liga_id in LIGAS_IDS:
+        params = {"live": "all", "league": liga_id}
+        respuesta = requests.get(url, headers=headers, params=params)
+        if respuesta.status_code != 200:
+            continue
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+        partidos = respuesta.json().get("response", [])
+        for partido in partidos:
+            eventos = partido.get("events", [])
+            for evento in eventos:
+                evento_id = evento.get("time", {}).get("elapsed", 0), evento.get("team", {}).get("id", 0), evento.get("player", {}).get("id", 0)
+                if evento_id in eventos_reportados:
