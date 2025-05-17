@@ -1,65 +1,131 @@
-import requests import time import datetime import os
+import requests
+import time
+import datetime
+import os
 
-TELEGRAM_TOKEN = os.getenv("Telegramtoken") CHAT_ID = os.getenv("Chatid") API_KEY = os.getenv("APIkey")
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+API_KEY = os.getenv("API_FOOTBALL_KEY")
 
-HEADERS = { "X-RapidAPI-Key": API_KEY, "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com" }
+LEAGUE_IDS = [
+    39,   # Premier League (Inglaterra)
+    78,   # Bundesliga (Alemania)
+    61,   # Ligue 1 (Francia)
+    135,  # Serie A (Italia)
+    140,  # La Liga (España)
+    94,   # Primeira Liga (Portugal)
+    88,   # Eredivisie (Países Bajos)
+    128,  # Liga Profesional Argentina
+    71,   # Serie A Brasil
+    62,   # Categoría Primera A Colombia
+    135,  # Serie A Italia
+    262,  # Liga MX México
+    141   # Segunda División España
+]
 
-LEAGUES = [39, 140, 135, 78, 61, 2, 3, 71, 262, 262, 94, 88, 253]  # Añadida Segunda División de España (id: 140)
+VAR_KEYWORDS = [
+    'goal disallowed', 'goal cancelled', 'goal annulled', 'goal invalidated',
+    'VAR', 'offside', 'foul', 'handball', 'goalkeeper interference'
+]
 
-REPORTED_EVENTS = set()
+POST_KEYWORDS = [
+    'hit the post', 'off the post', 'off the bar', 'off the crossbar',
+    'post', 'bar', 'crossbar', 'rebound from post', 'rebound off the bar',
+    'rebound off the post', 'rebound off the crossbar'
+]
 
-def send_telegram_message(message): url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage" data = {"chat_id": CHAT_ID, "text": message} requests.post(url, data=data)
+alerted_matches = set()
+logged_events = set()
 
-def log_event(text): try: with open("eventos.txt", "a", encoding="utf-8") as f: f.write(text + "\n") except Exception as e: print(f"Error al guardar evento: {e}")
+def send_alert(message):
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    payload = {"chat_id": CHAT_ID, "text": message}
+    try:
+        requests.post(url, json=payload)
+    except Exception as e:
+        print("Error al enviar alerta:", e)
 
-def check_matches(): now = datetime.datetime.utcnow() today = now.strftime("%Y-%m-%d") for league_id in LEAGUES: url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season=2024&date={today}" response = requests.get(url, headers=HEADERS) try: matches = response.json().get("response", []) for match in matches: fixture_id = match["fixture"]["id"] status = match["fixture"]["status"]["short"] if status in ["1H", "2H", "ET"]: process_match(fixture_id, match) except Exception as e: print(f"Error general: {e}")
+def log_event(event_text):
+    try:
+        with open("eventos.txt", "a", encoding="utf-8") as f:
+            f.write(event_text + "\n")
+    except Exception as e:
+        print("Error al registrar evento:", e)
 
-def process_match(fixture_id, match_info): url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures/events?fixture={fixture_id}" response = requests.get(url, headers=HEADERS) events = response.json().get("response", []) home_team = match_info["teams"]["home"]["name"] away_team = match_info["teams"]["away"]["name"]
+def get_fixtures():
+    url = "https://v3.football.api-sports.io/fixtures"
+    headers = {"x-apisports-key": API_KEY}
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    params = {"date": today, "league": ",".join(map(str, LEAGUE_IDS)), "season": 2024}
+    response = requests.get(url, headers=headers, params=params)
+    return response.json().get("response", [])
 
-for event in events:
-    event_id = f"{fixture_id}-{event['time']['elapsed']}-{event['team']['id']}-{event['type']}-{event.get('detail', '')}"
-    if event_id in REPORTED_EVENTS:
-        continue
+def get_statistics(fixture_id):
+    url = f"https://v3.football.api-sports.io/fixtures/statistics?fixture={fixture_id}"
+    headers = {"x-apisports-key": API_KEY}
+    response = requests.get(url, headers=headers)
+    return response.json().get("response", [])
 
-    REPORTED_EVENTS.add(event_id)
-    log_event(str(event))
+def get_events(fixture_id):
+    url = f"https://v3.football.api-sports.io/fixtures/events?fixture={fixture_id}"
+    headers = {"x-apisports-key": API_KEY}
+    response = requests.get(url, headers=headers)
+    return response.json().get("response", [])
 
-    detail = event.get("detail", "").lower()
-    comments = event.get("comments", "").lower() if event.get("comments") else ""
+def should_alert_var(event):
+    if event["type"] != "Goal":
+        return False
+    description = (event.get("detail") or "") + " " + (event.get("comments") or "")
+    description = description.lower()
+    return any(keyword in description for keyword in VAR_KEYWORDS)
 
-    # Goles anulados por VAR
-    if event["type"] == "Goal" and (
-        "goal cancelled" in detail or
-        "goal disallowed" in detail or
-        "goal annulled" in detail or
-        ("var" in comments and any(x in comments for x in ["offside", "foul", "handball", "goalkeeper interference"]))
-    ):
-        message = f"Gol anulado por VAR en {home_team} vs {away_team} al minuto {event['time']['elapsed']}."
-        send_telegram_message(message)
+def should_alert_post(event):
+    if event["type"] != "Shot":
+        return False
+    description = (event.get("detail") or "") + " " + (event.get("comments") or "")
+    description = description.lower()
+    return any(keyword in description for keyword in POST_KEYWORDS)
 
-    # Balón al palo
-    palo_variants = ["hit the post", "hit the bar", "post", "bar", "crossbar", "off the post", "off the bar"]
-    if event["type"].lower() == "shot" and any(variant in detail for variant in palo_variants):
-        message = f"Balón al palo en {home_team} vs {away_team} al minuto {event['time']['elapsed']}."
-        send_telegram_message(message)
+def monitor():
+    fixtures = get_fixtures()
+    for fixture in fixtures:
+        fixture_id = fixture["fixture"]["id"]
+        status = fixture["fixture"]["status"]["short"]
+        minute = fixture["fixture"]["status"].get("elapsed", 0)
+        if status not in ["1H", "2H"]:
+            continue
 
-# Tiros a puerta al minuto 30+
-try:
-    minute = match_info["fixture"]["status"]["elapsed"]
-    if minute and minute >= 30:
-        stats_url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures/statistics?fixture={fixture_id}"
-        stats_res = requests.get(stats_url, headers=HEADERS)
-        stats = stats_res.json().get("response", [])
-        for team_stat in stats:
-            team_name = team_stat["team"]["name"]
-            for item in team_stat["statistics"]:
-                if item["type"] == "Shots on Goal" and item["value"] is not None and item["value"] >= 4:
-                    alert_id = f"{fixture_id}-{team_name}-shots"
-                    if alert_id not in REPORTED_EVENTS:
-                        REPORTED_EVENTS.add(alert_id)
-                        send_telegram_message(f"{team_name} tiene {item['value']} tiros a puerta al minuto {minute} en el partido {home_team} vs {away_team}.")
-except Exception as e:
-    print(f"Error al verificar tiros a puerta: {e}")
+        # Verificar estadísticas de remates a puerta
+        if fixture_id not in alerted_matches and minute >= 30:
+            stats = get_statistics(fixture_id)
+            for team_stats in stats:
+                for item in team_stats.get("statistics", []):
+                    if item["type"] == "Shots on Goal":
+                        value = item["value"]
+                        if value is not None and value >= 4:
+                            team_name = team_stats["team"]["name"]
+                            message = f"ALERTA: {team_name} lleva {value} tiros a puerta al minuto {minute}"
+                            send_alert(message)
+                            alerted_matches.add(fixture_id)
+                            break
 
-if name == "main": while True: check_matches() time.sleep(15)
+        # Eventos de partido
+        events = get_events(fixture_id)
+        for event in events:
+            key = f'{fixture_id}-{event["time"]["elapsed"]}-{event["team"]["id"]}-{event["player"]["id"]}-{event["type"]}-{event["detail"]}'
+            if key not in logged_events:
+                log_event(f"{fixture['teams']['home']['name']} vs {fixture['teams']['away']['name']} | Min {event['time']['elapsed']} | {event['team']['name']} | {event['type']} | {event['detail']} | {event.get('comments', '')}")
+                logged_events.add(key)
 
+                if should_alert_var(event):
+                    send_alert(f"GOL ANULADO POR VAR en {fixture['teams']['home']['name']} vs {fixture['teams']['away']['name']} - {event['team']['name']} - {event['player']['name']} - {event['detail']} - {event.get('comments', '')}")
+
+                elif should_alert_post(event):
+                    send_alert(f"TIRO AL PALO en {fixture['teams']['home']['name']} vs {fixture['teams']['away']['name']} - {event['team']['name']} - {event['player']['name']} - {event['detail']} - {event.get('comments', '')}")
+
+while True:
+    try:
+        monitor()
+    except Exception as e:
+        print("Error general:", e)
+    time.sleep(15)
