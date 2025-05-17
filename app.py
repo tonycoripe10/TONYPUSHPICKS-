@@ -3,123 +3,91 @@ import time
 import os
 from datetime import datetime
 
-# Variables de entorno
-API_KEY = os.getenv("APIkey")
-BOT_TOKEN = os.getenv("Telegramtoken")
-CHAT_ID = os.getenv("Chatid")
+API_KEY = os.getenv('APIkey')
+TELEGRAM_TOKEN = os.getenv('Telegramtoken')
+CHAT_ID = os.getenv('Chatid')
 
-# Configuración
-LIGAS_MONITOREADAS = [39, 140, 135, 78, 61, 62, 71, 94, 135, 262, 253]  # Premier, La Liga, Serie A, etc.
-INTERVALO = 15  # segundos
+# IDs de las ligas que estás monitoreando
+LEAGUE_IDS = [39, 140, 135, 78, 61, 88, 94, 262, 203, 253, 262]
 
-eventos_reportados = set()
+reported_events = set()
 
-def enviar_mensaje(mensaje):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": mensaje}
-    try:
-        requests.post(url, data=payload)
-    except Exception as e:
-        print("Error al enviar mensaje:", e)
+def send_telegram_message(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    data = {"chat_id": CHAT_ID, "text": message}
+    requests.post(url, data=data)
 
-def guardar_evento_log(evento):
-    try:
-        with open("eventos.txt", "a", encoding="utf-8") as f:
-            f.write(f"{datetime.now()} | {evento}\n")
-    except Exception as e:
-        print("Error guardando evento:", e)
+def save_event_log(text):
+    with open("eventos.txt", "a", encoding="utf-8") as f:
+        f.write(text + "\n")
 
-def obtener_partidos_en_juego():
+def get_live_matches():
     url = "https://v3.football.api-sports.io/fixtures?live=all"
-    headers = {"x-apisports-key": API_KEY}
-    try:
-        respuesta = requests.get(url, headers=headers)
-        data = respuesta.json()
-        return data.get("response", [])
-    except Exception as e:
-        print("Error obteniendo partidos:", e)
-        return []
+    headers = {"X-Auth-Token": API_KEY}
+    response = requests.get(url, headers=headers)
+    return response.json()
 
-def analizar_eventos(partido):
-    id_partido = partido["fixture"]["id"]
-    liga_id = partido["league"]["id"]
-    minuto = partido["fixture"]["status"]["elapsed"]
+def process_matches(data):
+    for match in data.get("response", []):
+        fixture_id = match["fixture"]["id"]
+        league_id = match["league"]["id"]
+        elapsed = match["fixture"]["status"]["elapsed"]
 
-    if liga_id not in LIGAS_MONITOREADAS:
-        return
-
-    # Eventos
-    url = f"https://v3.football.api-sports.io/fixtures/events?fixture={id_partido}"
-    headers = {"x-apisports-key": API_KEY}
-    try:
-        respuesta = requests.get(url, headers=headers)
-        eventos = respuesta.json().get("response", [])
-    except Exception as e:
-        print("Error obteniendo eventos:", e)
-        return
-
-    for evento in eventos:
-        evento_id = f"{id_partido}-{evento.get('time', {}).get('elapsed')}-{evento.get('team', {}).get('id')}-{evento.get('type')}-{evento.get('detail')}"
-
-        if evento_id in eventos_reportados:
+        if league_id not in LEAGUE_IDS:
             continue
 
-        eventos_reportados.add(evento_id)
-        guardar_evento_log(evento)
+        # Eventos
+        events = match.get("events", [])
+        for event in events:
+            event_id = f"{fixture_id}_{event['time']['elapsed']}_{event['team']['id']}_{event['type']}_{event.get('detail', '')}"
+            if event_id in reported_events:
+                continue
 
-        tipo = evento.get("type", "").lower()
-        detalle = evento.get("detail", "").lower()
-        comentario = evento.get("comments", "")
-        equipo = evento.get("team", {}).get("name", "Desconocido")
-        jugador = evento.get("player", {}).get("name", "Jugador desconocido")
+            reported_events.add(event_id)
 
-        # GOL ANULADO POR VAR
-        if tipo == "goal" and any(x in detalle for x in ["cancelled", "disallowed", "annulled"]):
-            if any(x in comentario.lower() for x in ["var", "offside", "foul", "handball", "goalkeeper interference"]):
-                mensaje = f"GOL ANULADO POR VAR en {equipo}: {jugador} ({detalle})"
-                enviar_mensaje(mensaje)
+            team_name = event['team']['name']
+            player = event.get("player", {}).get("name", "Desconocido")
+            detail = event.get("detail", "").lower()
+            event_type = event.get("type", "")
 
-        # BALÓN AL PALO / LARGUERO
-        if tipo == "shot" and any(x in detalle for x in ["hit the post", "post", "bar", "crossbar", "woodwork", "off the post"]):
-            mensaje = f"Tiro al palo/larguero de {equipo}: {jugador} ({detalle})"
-            enviar_mensaje(mensaje)
+            log_text = f"{datetime.now()} - {team_name} - {event_type} - {detail}"
+            save_event_log(log_text)
 
-    # ALERTA DE TIROS A PUERTA O xG AL MINUTO 30+
-    if minuto >= 30:
-        url_estadisticas = f"https://v3.football.api-sports.io/fixtures/statistics?fixture={id_partido}"
-        try:
-            res = requests.get(url_estadisticas, headers=headers)
-            estadisticas = res.json().get("response", [])
-        except Exception as e:
-            print("Error obteniendo estadísticas:", e)
-            return
+            # Balón al palo
+            palo_keywords = ["post", "crossbar", "hits the post", "off the post", "off the crossbar"]
+            if event_type == "Shot" and any(kw in detail for kw in palo_keywords):
+                send_telegram_message(f"Tiro al palo de {player} ({team_name}) en el minuto {event['time']['elapsed']}")
+                continue
 
-        for stats in estadisticas:
-            nombre_equipo = stats["team"]["name"]
-            tiros_puerta = 0
-            xg = 0.0
+            # Gol anulado por VAR
+            var_keywords = ["goal cancelled", "goal disallowed", "goal annulled"]
+            var_reasons = ["offside", "foul", "handball", "goalkeeper interference"]
+            if event_type == "Goal":
+                full_detail = detail.lower()
+                if any(kw in full_detail for kw in var_keywords) or any(reason in full_detail for reason in var_reasons):
+                    send_telegram_message(f"¡GOL ANULADO POR VAR! {team_name} - {full_detail}")
+                    continue
 
-            for item in stats["statistics"]:
-                if item["type"].lower() == "shots on goal":
-                    tiros_puerta = item["value"] or 0
-                if item["type"].lower() == "expected goals":
-                    xg = float(item["value"] or 0)
+        # Estadísticas minuto ~30
+        if elapsed and 28 <= elapsed <= 32:
+            stats = match.get("statistics", [])
+            for team_stats in stats:
+                team_name = team_stats["team"]["name"]
+                values = {item["type"]: item["value"] for item in team_stats["statistics"]}
 
-            alerta_id = f"{id_partido}-{nombre_equipo}-alerta30"
+                shots_on_target = values.get("Shots on Goal")
+                xg = values.get("Expected Goals")
 
-            if alerta_id not in eventos_reportados:
-                if tiros_puerta >= 4 or xg > 1.5:
-                    mensaje = f"Alerta Minuto {minuto}: {nombre_equipo} lleva {tiros_puerta} tiros a puerta y xG: {xg}"
-                    enviar_mensaje(mensaje)
-                    eventos_reportados.add(alerta_id)
+                if shots_on_target is not None and shots_on_target >= 4:
+                    send_telegram_message(f"{team_name} ha realizado {shots_on_target} tiros a puerta al minuto {elapsed}")
 
-# Bucle principal
-enviar_mensaje("Bot de fútbol iniciado y monitoreando partidos...")
+                if xg is not None and isinstance(xg, (int, float)) and xg >= 1.5:
+                    send_telegram_message(f"{team_name} tiene {xg} goles esperados al minuto {elapsed}")
+
 while True:
     try:
-        partidos = obtener_partidos_en_juego()
-        for partido in partidos:
-            analizar_eventos(partido)
+        matches = get_live_matches()
+        process_matches(matches)
     except Exception as e:
-        print("Error general:", e)
-    time.sleep(INTERVALO)
+        print(f"Error general: {e}")
+    time.sleep(15)
