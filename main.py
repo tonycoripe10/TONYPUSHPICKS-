@@ -14,7 +14,7 @@ CHAT_ID = os.getenv("Chatid")
 
 SOFASCORE_URL = "https://www.sofascore.com"
 
-Ligas de interés (puedes añadir más)
+#Ligas de interés (puedes añadir más)
 
 LEAGUES = [ "spain", "england", "italy", "germany", "france", "portugal", "netherlands", "argentina", "brazil", "mexico", "colombia" ]
 
