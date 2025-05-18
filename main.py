@@ -139,27 +139,32 @@ def monitor_live_matches():
 # Lógica de ejecución programada
 # --------------------------------------------
 if __name__ == "__main__":
-    enviados = {"mañana": False, "noche": False}
+    run_scheduler()
+def run_scheduler():
+    ejecutado_hoy_9 = False
+    ejecutado_hoy_0 = False
 
     while True:
-        hora_actual = datetime.now(pytz.timezone("Europe/Madrid"))
+        ahora = datetime.now(pytz.timezone("Europe/Madrid"))
 
-        # Enviar resumen a las 09:00
-        if hora_actual.hour == 12 and hora_actual.minute == 25 and not enviados["mañana"]:
+        if ahora.hour == 9 and ahora.minute == 0 and not ejecutado_hoy_9:
             daily_summary()
-            enviados["mañana"] = True
+            ejecutado_hoy_9 = True
 
-        # Enviar resumen a las 00:01
-        if hora_actual.hour == 0 and hora_actual.minute == 1 and not enviados["noche"]:
+        if ahora.hour == 0 and ahora.minute == 1 and not ejecutado_hoy_0:
             daily_summary()
-            enviados["noche"] = True
+            ejecutado_hoy_0 = True
 
-        # Resetear flags al cambiar de día
-        if hora_actual.hour == 5 and hora_actual.minute == 0:
-            enviados = {"mañana": False, "noche": False}
+        if ahora.hour == 12 and ahora.minute == 37:
+            daily_summary()
 
-        # Solo monitorizar si es horario de partidos (12:00 a 04:00)
-        if 12 <= hora_actual.hour or hora_actual.hour <= 4:
+        # Reset flags si cambia de día
+        if ahora.hour == 1 and ahora.minute == 0:
+            ejecutado_hoy_9 = False
+            ejecutado_hoy_0 = False
+
+        # Inicia monitoreo si está en horario de partidos
+        if 12 <= ahora.hour or ahora.hour <= 4:
             monitor_live_matches()
 
-        time.sleep(60)
+        time.sleep(60)    
