@@ -9,7 +9,8 @@ import os
 import schedule
 from telegram import Bot
 
-TELEGRAM_TOKEN = os.getenv("Telegramtoken") CHAT_ID = os.getenv("Chatid")
+TELEGRAM_TOKEN = os.getenv("Telegramtoken")
+CHAT_ID = os.getenv("Chatid")
 
 SOFASCORE_URL = "https://www.sofascore.com"
 
