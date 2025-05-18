@@ -22,7 +22,7 @@ HEADERS = { "User-Agent": "Mozilla/5.0" }
 
 #--------------------------------------------
 
-Función para enviar mensajes a Telegram
+#Función para enviar mensajes a Telegram
 
 #--------------------------------------------
 
@@ -30,7 +30,7 @@ def send_telegram_message(message): url = f"https://api.telegram.org/bot{TELEGRA
 
 #--------------------------------------------
 
-Obtener partidos del día desde SofaScore
+#Obtener partidos del día desde SofaScore
 
 #--------------------------------------------
 
@@ -38,7 +38,7 @@ def get_today_matches(): today = datetime.now(pytz.timezone('Europe/Madrid')).st
 
 #--------------------------------------------
 
-Extraer eventos en vivo de un partido
+#Extraer eventos en vivo de un partido
 
 #--------------------------------------------
 
@@ -46,7 +46,7 @@ def get_live_events(match_url): events = [] try: response = requests.get(match_u
 
 #--------------------------------------------
 
-Extraer marcador actual
+#Extraer marcador actual
 
 #--------------------------------------------
 
@@ -54,7 +54,7 @@ def extract_score(soup): try: title = soup.title.string score = title.split("-")
 
 #--------------------------------------------
 
-Enviar resumen diario de partidos
+#Enviar resumen diario de partidos
 
 #--------------------------------------------
 
@@ -62,7 +62,7 @@ def daily_summary(): matches = get_today_matches() if matches: message = "<b>Bue
 
 #--------------------------------------------
 
-Monitorizar eventos en partidos en vivo
+#Monitorizar eventos en partidos en vivo
 
 #--------------------------------------------
 
@@ -70,7 +70,7 @@ def monitor_live_matches(): matches = get_today_matches() while True: for match_
 
 #--------------------------------------------
 
-Lógica de ejecución programada
+#Lógica de ejecución programada
 
 #--------------------------------------------
 
