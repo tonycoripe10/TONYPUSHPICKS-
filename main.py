@@ -143,7 +143,7 @@ if __name__ == "__main__":
 
     # Ejecutar hoy a las 11:30 (solo hoy)
     if hora_actual.strftime("%Y-%m-%d") == datetime.now().strftime("%Y-%m-%d") \
-            and hora_actual.hour == 12 and hora_actual.minute >= 15:
+            and hora_actual.hour == 12 and hora_actual.minute >= 00:
         daily_summary()
 
     # Todos los días a las 09:00 y a las 00:01
