@@ -156,7 +156,7 @@ def run_scheduler():
             ejecutado_hoy_0 = True
 
         # Resumen a las 12:41 (o la hora que desees, sin bandera para repetición)
-        if ahora.hour == 13 and ahora.minute == 08:
+        if ahora.hour == 13 and ahora.minute == 11:
             daily_summary()
 
         # Reset flags al cambiar de día, para poder enviar mensajes de nuevo
