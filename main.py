@@ -155,7 +155,7 @@ def run_scheduler():
             daily_summary()
             ejecutado_hoy_0 = True
 
-        if ahora.hour == 12 and ahora.minute == 37:
+        if ahora.hour == 12 and ahora.minute == 41:
             daily_summary()
 
         # Reset flags si cambia de día
