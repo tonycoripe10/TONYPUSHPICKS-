@@ -169,7 +169,7 @@ def run_scheduler():
             daily_summary()
             ejecutado_hoy_0 = True
         # Resumen a las 14:05 (sin bandera para repetición)
-        if ahora.hour == 14 and ahora.minute == 5:
+        if ahora.hour == 14 and ahora.minute == 9:
             daily_summary()
         # Reset flags al cambiar de día
         if ahora.hour == 1 and ahora.minute == 0:
