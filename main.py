@@ -138,8 +138,9 @@ def monitor_live_matches():
 # --------------------------------------------
 # Lógica de ejecución programada
 # --------------------------------------------
-if __name__ == "__main__":
-    run_scheduler()
+# --------------------------------------------
+# Lógica de ejecución programada
+# --------------------------------------------
 def run_scheduler():
     ejecutado_hoy_9 = False
     ejecutado_hoy_0 = False
@@ -167,4 +168,8 @@ def run_scheduler():
         if 12 <= ahora.hour or ahora.hour <= 4:
             monitor_live_matches()
 
-        time.sleep(60)    
+        time.sleep(60)
+
+# <-- AQUÍ COLOCAS LA EJECUCIÓN -->
+if __name__ == "__main__":
+    run_scheduler()
