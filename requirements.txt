@@ -1,2 +1,4 @@
 requests
-flask
+beautifulsoup4
+python-telegram-bot==13.15
+schedule
