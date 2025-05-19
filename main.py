@@ -13,7 +13,7 @@ SPORTMONKS_TOKEN = os.getenv("APIkey")
 
 # Configuración general
 HEADERS = {"Authorization": f"Bearer {SPORTMONKS_TOKEN}"}
-BASE_URL = "https://api.sportmonks.com/v3/football"
+BASE_URL = "https://api.sportmonks.com/v3/football/livescores/inplay"
 INTERVALO_SEGUNDOS = 40
 
 # IDs de ligas a monitorear
