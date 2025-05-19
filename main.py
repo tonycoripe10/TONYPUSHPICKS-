@@ -73,7 +73,7 @@ class Bot:
                 partidos = []
                 for match in data.get("data", []):
                     league_id = match.get("league_id")
-                    if league_id not in COMPETITION_IDS:
+                    if not isinstance(league_id, int) or league_id not in COMPETITION_IDS:
                         continue
                     participants = match.get("participants", [])
                     if len(participants) < 2:
@@ -108,7 +108,7 @@ class Bot:
 
                 for match in data.get("data", []):
                     league_id = match.get("league_id")
-                    if league_id not in COMPETITION_IDS:
+                    if not isinstance(league_id, int) or league_id not in COMPETITION_IDS:
                         continue
 
                     participants = match.get("participants", [])
@@ -160,11 +160,19 @@ class Bot:
                     for stat in stats:
                         team = escape_html(stat.get("participant_name", "Equipo"))
                         shots_on_target = stat.get("shots_on_target", 0)
+                        xg = stat.get("expected_goals", 0)
 
-                        if minute <= 30 and shots_on_target >= 4:
-                            msg = (f"🔥 <b>{team}</b> tiene <b>{shots_on_target}</b> remates a puerta antes del minuto 30\n"
-                                   f"<b>{home} vs {away}</b>\nResultado: <b>{score}</b>")
-                            await self.send_telegram_message(msg)
+                        if minute <= 30:
+                            if shots_on_target >= 4:
+                                msg = (f"🔥 <b>{team}</b> tiene <b>{shots_on_target}</b> remates a puerta antes del minuto 30\n"
+                                       f"<b>{home} vs {away}</b>\nResultado: <b>{score}</b>")
+                                await self.send_telegram_message(msg)
+
+                            if xg and float(xg) >= 1.5:
+                                msg = (f"🔎 <b>{team}</b> supera 1.5 xG antes del minuto 30\n"
+                                       f"<b>{home} vs {away}</b>\nResultado: <b>{score}</b>\n"
+                                       f"xG: <b>{xg}</b>")
+                                await self.send_telegram_message(msg)
 
         except Exception as e:
             print(f"[Error en partidos en vivo] {e}")
