@@ -5,7 +5,7 @@ from datetime import datetime
 
 TELEGRAM_TOKEN = os.getenv('Telegramtoken')
 CHAT_ID = os.getenv('Chatid')
-SPORTMONKS_TOKEN = os.getenv('SportmonksToken')  # Asegúrate de configurarlo en Railway
+SPORTMONKS_TOKEN = os.getenv('APIkey')  # Asegúrate de configurarlo en Railway
 
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
