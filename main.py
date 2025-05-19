@@ -4,6 +4,7 @@ import asyncio
 import aiohttp
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import html
 
 API_KEY = os.getenv("APIkey")
 TELEGRAM_TOKEN = os.getenv("Telegramtoken")
@@ -15,6 +16,9 @@ COMPETITION_IDS = [
     8, 9, 82, 83, 184, 384, 301, 35, 39, 74, 71, 77, 66, 1005, 1013,
     179, 2, 3, 5, 196
 ]
+
+def escape_html(text):
+    return html.escape(str(text))[:4000]
 
 class Bot:
     def __init__(self):
@@ -49,7 +53,6 @@ class Bot:
             target_date = now.strftime('%Y-%m-%d')
             header = "📋 <b>Partidos del día (Europa)</b>\n\n"
         else:
-            # Ajuste horario para Sudamérica/MLS según tu lógica
             target_date = (now + datetime.timedelta(hours=2)).strftime('%Y-%m-%d')
             header = "🌎 <b>Partidos del día (Sudamérica y MLS)</b>\n\n"
 
@@ -68,8 +71,8 @@ class Bot:
                     participants = match.get("participants", [])
                     if len(participants) < 2:
                         continue
-                    home = participants[0].get("name", "Equipo Local")
-                    away = participants[1].get("name", "Equipo Visitante")
+                    home = escape_html(participants[0].get("name", "Equipo Local"))
+                    away = escape_html(participants[1].get("name", "Equipo Visitante"))
                     dt_str = match.get("starting_at", {}).get("date_time")
                     if not dt_str:
                         continue
@@ -105,18 +108,19 @@ class Bot:
                     if len(participants) < 2:
                         continue
 
-                    home = participants[0].get("name", "Local")
-                    away = participants[1].get("name", "Visitante")
-                    score = f"{participants[0].get('score',0)} - {participants[1].get('score',0)}"
+                    home = escape_html(participants[0].get("name", "Local"))
+                    away = escape_html(participants[1].get("name", "Visitante"))
+                    score = escape_html(f"{participants[0].get('score',0)} - {participants[1].get('score',0)}")
                     minute = match.get("time", {}).get("minute") or 0
 
                     # Eventos
                     events = match.get("events", [])
                     for event in events:
-                        comment = event.get("details", "").lower()
+                        comment_raw = event.get("details", "")
+                        comment = comment_raw.lower()
                         event_type = event.get("type", "").lower()
+                        safe_comment = escape_html(comment_raw)
 
-                        # Gol anulado por VAR
                         if (event_type == "goal_cancelled" or any(x in comment for x in [
                             "goal cancelled", "goal disallowed", "disallowed goal",
                             "offside", "handball", "foul", "var", "interference"
@@ -124,32 +128,30 @@ class Bot:
                             msg = (f"❌ <b>¡Gol anulado por VAR!</b>\n"
                                    f"<b>{home} vs {away}</b>\n"
                                    f"Resultado: <b>{score}</b>\n"
-                                   f"<i>{comment}</i>")
+                                   f"<i>{safe_comment}</i>")
                             await self.send_telegram_message(msg)
                             break
 
-                        # Tiro al palo
                         if "post" in comment or "crossbar" in comment:
                             msg = (f"⚠️ <b>¡Tiro al palo!</b>\n"
                                    f"<b>{home} vs {away}</b>\n"
                                    f"Resultado: <b>{score}</b>\n"
-                                   f"<i>{comment}</i>")
+                                   f"<i>{safe_comment}</i>")
                             await self.send_telegram_message(msg)
                             break
 
-                        # Tarjeta amarilla temprana (min 9 o menos)
                         if event_type == "yellowcard" and minute <= 9:
                             msg = (f"🟨 <b>Tarjeta amarilla temprana</b>\n"
                                    f"<b>{home} vs {away}</b>\n"
                                    f"Minuto: <b>{minute}'</b>\n"
-                                   f"<i>{comment}</i>")
+                                   f"<i>{safe_comment}</i>")
                             await self.send_telegram_message(msg)
                             break
 
                     # Estadísticas
                     stats = match.get("stats", [])
                     for stat in stats:
-                        team = stat.get("participant_name", "Equipo")
+                        team = escape_html(stat.get("participant_name", "Equipo"))
                         shots_on_target = stat.get("shots_on_target", 0)
                         xg = stat.get("expected_goals", 0)
 
