@@ -2,7 +2,7 @@ import os
 import requests
 
 def probar_token():
-    token = os.getenv("APIkey")
+    token = os.getenv("Sportmonks")
     if not token:
         print("La variable de entorno 'SportmonksToken' no está configurada.")
         return
