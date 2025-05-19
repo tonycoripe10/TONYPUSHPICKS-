@@ -3,8 +3,7 @@ import datetime
 import asyncio
 import aiohttp
 import pytz
-from apscheduler.schedulers.asyncio 
-import AsyncIOScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import html
 from dateutil import parser
 
@@ -41,16 +40,14 @@ class Bot:
     async def send_telegram_message(self, text):
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         payload = {"chat_id": CHAT_ID, "text": text, "parse_mode": "HTML"}
-        print(f"[Telegram] Enviando mensaje:\n{payload}\n")  # PRINT DEL MENSAJE QUE SE ENVÍA
         try:
             async with self.session.post(url, json=payload) as resp:
-                resp_text = await resp.text()
                 if resp.status != 200:
-                    print(f"[Telegram] ERROR HTTP {resp.status} - RESPUESTA: {resp_text}")
+                    print(f"[Telegram] ERROR HTTP {resp.status}")
                 else:
                     print(f"[Telegram] Mensaje enviado correctamente.")
         except Exception as e:
-            print(f"[Error Telegram] {e}")
+            print(f"[Telegram Error] {e}")
 
     async def send_startup_message(self):
         now = datetime.datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
@@ -101,7 +98,7 @@ class Bot:
 
     async def check_live_matches(self):
         print(f"[{datetime.datetime.now(TZ).strftime('%H:%M:%S')}] Verificando partidos en vivo...")
-        url = f"https://api.sportmonks.com/v3/football/fixtures?api_token={API_KEY}&include=events,stats,participants&filter[status]=LIVE"
+        url = f"https://api.sportmonks.com/v3/football/fixtures?api_token={API_KEY}&include=events,stats,participants&filters[status]=LIVE"
         try:
             async with self.session.get(url) as response:
                 if response.status != 200:
@@ -139,7 +136,6 @@ class Bot:
                                    f"<b>{home} vs {away}</b>\n"
                                    f"Resultado: <b>{score}</b>\n"
                                    f"<i>{safe_comment}</i>")
-                            print(f"[Alerta Gol Anulado] {msg}")  # PRINT ALERTA
                             await self.send_telegram_message(msg)
                             break
 
@@ -148,7 +144,6 @@ class Bot:
                                    f"<b>{home} vs {away}</b>\n"
                                    f"Resultado: <b>{score}</b>\n"
                                    f"<i>{safe_comment}</i>")
-                            print(f"[Alerta Palo] {msg}")  # PRINT ALERTA
                             await self.send_telegram_message(msg)
                             break
 
@@ -157,7 +152,6 @@ class Bot:
                                    f"<b>{home} vs {away}</b>\n"
                                    f"Minuto: <b>{minute}'</b>\n"
                                    f"<i>{safe_comment}</i>")
-                            print(f"[Alerta Tarjeta Amarilla] {msg}")  # PRINT ALERTA
                             await self.send_telegram_message(msg)
                             break
 
@@ -167,12 +161,10 @@ class Bot:
                         team = escape_html(stat.get("participant_name", "Equipo"))
                         shots_on_target = stat.get("shots_on_target", 0)
 
-                        if minute <= 30:
-                            if shots_on_target >= 4:
-                                msg = (f"🔥 <b>{team}</b> tiene <b>{shots_on_target}</b> remates a puerta antes del minuto 30\n"
-                                       f"<b>{home} vs {away}</b>\nResultado: <b>{score}</b>")
-                                print(f"[Alerta Remates a puerta] {msg}")  # PRINT ALERTA
-                                await self.send_telegram_message(msg)
+                        if minute <= 30 and shots_on_target >= 4:
+                            msg = (f"🔥 <b>{team}</b> tiene <b>{shots_on_target}</b> remates a puerta antes del minuto 30\n"
+                                   f"<b>{home} vs {away}</b>\nResultado: <b>{score}</b>")
+                            await self.send_telegram_message(msg)
 
         except Exception as e:
             print(f"[Error en partidos en vivo] {e}")
