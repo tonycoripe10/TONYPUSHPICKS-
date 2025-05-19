@@ -165,20 +165,12 @@ class Bot:
                     for stat in stats:
                         team = escape_html(stat.get("participant_name", "Equipo"))
                         shots_on_target = stat.get("shots_on_target", 0)
-                        xg = stat.get("expected_goals", 0)
 
                         if minute <= 30:
                             if shots_on_target >= 4:
                                 msg = (f"🔥 <b>{team}</b> tiene <b>{shots_on_target}</b> remates a puerta antes del minuto 30\n"
                                        f"<b>{home} vs {away}</b>\nResultado: <b>{score}</b>")
                                 print(f"[Alerta Remates a puerta] {msg}")  # PRINT ALERTA
-                                await self.send_telegram_message(msg)
-
-                            if xg and float(xg) > 1.5:
-                                msg = (f"⚡️ <b>{team}</b> supera 1.5 xG antes del minuto 30\n"
-                                       f"<b>{home} vs {away}</b>\nResultado: <b>{score}</b>\n"
-                                       f"<i>xG: {xg}</i>")
-                                print(f"[Alerta xG] {msg}")  # PRINT ALERTA
                                 await self.send_telegram_message(msg)
 
         except Exception as e:
