@@ -4,7 +4,7 @@ from datetime import datetime
 from telegram import Bot
 
 # Cargar variables de entorno desde Railway
-SPORTMONKS_TOKEN = os.getenv("SportmonksToken")
+SPORTMONKS_TOKEN = os.getenv("APIkey")
 TELEGRAM_TOKEN = os.getenv("Telegramtoken")
 CHAT_ID = os.getenv("Chatid")
 
