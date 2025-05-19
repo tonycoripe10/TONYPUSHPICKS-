@@ -1,5 +1,3 @@
-requests
 aiohttp
-pytz
-apscheduler
-python-dateutil
+python-telegram-bot
+requests
