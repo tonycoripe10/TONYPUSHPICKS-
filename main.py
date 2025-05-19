@@ -158,9 +158,13 @@ class Bot:
 
 if __name__ == "__main__":
     bot = Bot()
-    try:
-        asyncio.run(bot.run())
-    except KeyboardInterrupt:
-        print("Bot detenido por usuario.")
-    finally:
-        asyncio.run(bot.close())
+
+    async def main():
+        try:
+            await bot.run()
+        except KeyboardInterrupt:
+            print("Bot detenido por usuario.")
+        finally:
+            await bot.close()
+
+    asyncio.run(main())
