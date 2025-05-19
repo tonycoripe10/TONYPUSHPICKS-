@@ -1,6 +1,4 @@
 import os
-import time
-import requests
 import datetime
 import asyncio
 import aiohttp
@@ -15,26 +13,13 @@ CHAT_ID = os.getenv("Chatid")
 # Zona horaria
 TZ = pytz.timezone('Europe/Madrid')
 
-# Ligas a monitorear
+# IDs de ligas a monitorear
 COMPETITION_IDS = [
-    8, 9,        # España 1ª y 2ª
-    82, 83,      # Inglaterra 1ª y 2ª
-    184,         # Alemania 1ª
-    384,         # Italia 1ª
-    301,         # Francia 1ª
-    35,          # Holanda 1ª
-    39,          # Portugal 1ª
-    74,          # México 1ª
-    71,          # Brasil 1ª
-    77,          # Colombia 1ª
-    66,          # Argentina 1ª
-    1005, 1013,  # Libertadores y Sudamericana
-    179,         # MLS
-    2, 3, 5,     # UCL, UEL, Conference
-    196          # Mundial de Clubes
+    8, 9, 82, 83, 184, 384, 301, 35, 39, 74, 71, 77, 66,
+    1005, 1013, 179, 2, 3, 5, 196
 ]
 
-# Función para enviar mensaje por Telegram
+# Enviar mensaje por Telegram
 async def send_telegram_message(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": text, "parse_mode": "HTML"}
@@ -44,9 +29,9 @@ async def send_telegram_message(text):
                 if resp.status != 200:
                     print(f"[Telegram] Error {resp.status}: {await resp.text()}")
     except Exception as e:
-        print(f"[Error Telegram] {e}")
+        print(f"[Telegram Error] {e}")
 
-# Mensaje de inicio
+# Mensaje inicial
 async def send_startup_message():
     now = datetime.datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
     msg = f"✅ <b>Bot en marcha</b>\nHora: <i>{now}</i>"
@@ -69,21 +54,24 @@ async def send_daily_summary(region):
                 data = await response.json()
                 partidos = []
                 for match in data.get("data", []):
-                    if match.get("league_id") in COMPETITION_IDS:
-                        participants = match.get("participants", [])
-                        if len(participants) >= 2:
-                            home = participants[0]["name"]
-                            away = participants[1]["name"]
-                            start = datetime.datetime.fromisoformat(match["starting_at"]["date_time"]).astimezone(TZ)
-                            partidos.append(f"🕒 <b>{start.strftime('%H:%M')}</b> - {home} vs {away}")
+                    if match.get("league_id") not in COMPETITION_IDS:
+                        continue
+                    participants = match.get("participants", [])
+                    if len(participants) < 2:
+                        continue
+                    home = participants[0]["name"]
+                    away = participants[1]["name"]
+                    start_str = match["starting_at"]["date_time"]
+                    start = datetime.datetime.fromisoformat(start_str).astimezone(TZ)
+                    partidos.append(f"🕒 <b>{start.strftime('%H:%M')}</b> - {home} vs {away}")
 
                 partidos.sort()
                 msg = header + ("\n".join(partidos) if partidos else "No hay partidos programados hoy.")
                 await send_telegram_message(msg)
     except Exception as e:
-        print(f"[Resumen diario] Error: {e}")
+        print(f"[Resumen Diario Error] {e}")
 
-# Análisis de partidos en vivo
+# Verificar partidos en vivo
 async def check_live_matches():
     print(f"[{datetime.datetime.now(TZ).strftime('%H:%M:%S')}] Verificando partidos en vivo...")
     url = f"https://api.sportmonks.com/v3/football/fixtures?api_token={API_KEY}&include=events,stats,participants&filters[status]=LIVE"
@@ -103,32 +91,28 @@ async def check_live_matches():
                     home = participants[0]["name"]
                     away = participants[1]["name"]
                     score = f"{participants[0]['score']} - {participants[1]['score']}"
-                    minute = match.get("time", {}).get("minute", 0) or 0
+                    minute = match.get("time", {}).get("minute") or 0
 
-                    # Eventos
+                    alerts = []
+
+                    # Eventos relevantes
                     for event in match.get("events", []):
-                        comment = event.get("details", "").lower()
-                        event_type = event.get("type", "").lower()
+                        comment = (event.get("details") or "").lower()
+                        event_type = (event.get("type") or "").lower()
 
                         if event_type == "goal_cancelled" or any(x in comment for x in [
                             "goal cancelled", "goal disallowed", "disallowed goal",
-                            "offside", "handball", "foul", "var", "interference"
+                            "var", "offside", "handball", "foul", "interference"
                         ]):
-                            msg = f"❌ <b>¡Gol anulado por VAR!</b>\n<b>{home} vs {away}</b>\nResultado: <b>{score}</b>\n<i>{comment}</i>"
-                            await send_telegram_message(msg)
-                            break
-
+                            alerts.append(f"❌ <b>¡Gol anulado por VAR!</b>\n<b>{home} vs {away}</b>\nResultado: <b>{score}</b>\n<i>{comment}</i>")
+                        
                         if "post" in comment or "crossbar" in comment:
-                            msg = f"⚠️ <b>¡Tiro al palo!</b>\n<b>{home} vs {away}</b>\nResultado: <b>{score}</b>\n<i>{comment}</i>"
-                            await send_telegram_message(msg)
-                            break
+                            alerts.append(f"⚠️ <b>¡Tiro al palo!</b>\n<b>{home} vs {away}</b>\nResultado: <b>{score}</b>\n<i>{comment}</i>")
 
                         if event_type == "yellowcard" and minute <= 9:
-                            msg = f"🟨 <b>Tarjeta amarilla temprana</b>\n<b>{home} vs {away}</b>\nMinuto: <b>{minute}'</b>\n<i>{comment}</i>"
-                            await send_telegram_message(msg)
-                            break
+                            alerts.append(f"🟨 <b>Tarjeta amarilla temprana</b>\n<b>{home} vs {away}</b>\nMinuto: <b>{minute}'</b>\n<i>{comment}</i>")
 
-                    # Estadísticas
+                    # Estadísticas relevantes
                     for stat in match.get("stats", []):
                         team = stat.get("participant_name", "Equipo")
                         shots_on_target = stat.get("shots_on_target", 0)
@@ -136,18 +120,18 @@ async def check_live_matches():
 
                         if minute <= 30:
                             if shots_on_target >= 4:
-                                msg = f"🔥 <b>{team}</b> tiene <b>{shots_on_target}</b> remates a puerta antes del minuto 30\n<b>{home} vs {away}</b>\nResultado: <b>{score}</b>"
-                                await send_telegram_message(msg)
+                                alerts.append(f"🔥 <b>{team}</b> tiene <b>{shots_on_target}</b> remates a puerta antes del minuto 30\n<b>{home} vs {away}</b>\nResultado: <b>{score}</b>")
                             if xg and float(xg) > 1.5:
-                                msg = f"⚡️ <b>{team}</b> supera 1.5 xG antes del minuto 30\n<b>{home} vs {away}</b>\nResultado: <b>{score}</b>\n<i>xG: {xg}</i>"
-                                await send_telegram_message(msg)
+                                alerts.append(f"⚡️ <b>{team}</b> supera 1.5 xG antes del minuto 30\n<b>{home} vs {away}</b>\nResultado: <b>{score}</b>\n<i>xG: {xg}</i>")
+
+                    for alert in alerts:
+                        await send_telegram_message(alert)
     except Exception as e:
         print(f"[Error en partidos en vivo] {e}")
 
-# Inicialización
+# Ejecutar bot
 async def main():
     await send_startup_message()
-
     scheduler = AsyncIOScheduler(timezone=TZ)
     scheduler.add_job(lambda: asyncio.create_task(send_daily_summary("EU")), "cron", hour=9, minute=0)
     scheduler.add_job(lambda: asyncio.create_task(send_daily_summary("SA")), "cron", hour=0, minute=0)
