@@ -40,10 +40,14 @@ class Bot:
     async def send_telegram_message(self, text):
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         payload = {"chat_id": CHAT_ID, "text": text, "parse_mode": "HTML"}
+        print(f"[Telegram] Enviando mensaje:\n{payload}\n")  # PRINT DEL MENSAJE QUE SE ENVÍA
         try:
             async with self.session.post(url, json=payload) as resp:
+                resp_text = await resp.text()
                 if resp.status != 200:
-                    print(f"[Telegram] Error {resp.status}: {await resp.text()}")
+                    print(f"[Telegram] ERROR HTTP {resp.status} - RESPUESTA: {resp_text}")
+                else:
+                    print(f"[Telegram] Mensaje enviado correctamente.")
         except Exception as e:
             print(f"[Error Telegram] {e}")
 
@@ -134,6 +138,7 @@ class Bot:
                                    f"<b>{home} vs {away}</b>\n"
                                    f"Resultado: <b>{score}</b>\n"
                                    f"<i>{safe_comment}</i>")
+                            print(f"[Alerta Gol Anulado] {msg}")  # PRINT ALERTA
                             await self.send_telegram_message(msg)
                             break
 
@@ -142,6 +147,7 @@ class Bot:
                                    f"<b>{home} vs {away}</b>\n"
                                    f"Resultado: <b>{score}</b>\n"
                                    f"<i>{safe_comment}</i>")
+                            print(f"[Alerta Palo] {msg}")  # PRINT ALERTA
                             await self.send_telegram_message(msg)
                             break
 
@@ -150,6 +156,7 @@ class Bot:
                                    f"<b>{home} vs {away}</b>\n"
                                    f"Minuto: <b>{minute}'</b>\n"
                                    f"<i>{safe_comment}</i>")
+                            print(f"[Alerta Tarjeta Amarilla] {msg}")  # PRINT ALERTA
                             await self.send_telegram_message(msg)
                             break
 
@@ -164,12 +171,14 @@ class Bot:
                             if shots_on_target >= 4:
                                 msg = (f"🔥 <b>{team}</b> tiene <b>{shots_on_target}</b> remates a puerta antes del minuto 30\n"
                                        f"<b>{home} vs {away}</b>\nResultado: <b>{score}</b>")
+                                print(f"[Alerta Remates a puerta] {msg}")  # PRINT ALERTA
                                 await self.send_telegram_message(msg)
 
                             if xg and float(xg) > 1.5:
                                 msg = (f"⚡️ <b>{team}</b> supera 1.5 xG antes del minuto 30\n"
                                        f"<b>{home} vs {away}</b>\nResultado: <b>{score}</b>\n"
                                        f"<i>xG: {xg}</i>")
+                                print(f"[Alerta xG] {msg}")  # PRINT ALERTA
                                 await self.send_telegram_message(msg)
 
         except Exception as e:
