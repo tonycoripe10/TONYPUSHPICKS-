@@ -3,37 +3,33 @@ import aiohttp
 import datetime
 import urllib.parse
 import html
-
-# Zona horaria para Colombia (ajusta si es necesario)
 import pytz
+
+# Zona horaria para Colombia
 TZ = pytz.timezone('America/Bogota')
 
-# Variables de entorno o tus tokens aquí (reemplaza con tus datos reales)
+# Configura tus tokens y chat_id aquí
 API_KEY = "APIkey"
 TELEGRAM_TOKEN = "Telegramtoken"
 CHAT_ID = "Chatid"
 
-# Competencias que quieres monitorear (IDs Sportmonks)
+# IDs de ligas y competiciones a monitorear (Sportmonks)
 COMPETITION_IDS = {
-    271,  # España Primera
-    272,  # España Segunda
-    2,    # Inglaterra Premier
-    9,    # Inglaterra Championship
-    8,    # Alemania Bundesliga
-    11,   # Italia Serie A
-    14,   # Francia Ligue 1
-    16,   # Holanda Eredivisie
-    18,   # Portugal Primeira Liga
-    166,  # México Liga MX
-    182,  # Brasil Serie A
-    263,  # Colombia Primera A
-    264,  # Argentina Primera Division
-    61,   # Copa Libertadores
-    62,   # Copa Sudamericana
-    253,  # MLS
-    2,    # Champions League (usa mismo id que Inglaterra Premier? verifica)
-    3,    # Europa League (asegura que el id sea correcto)
-    # Añade más ids si tienes
+    271, 272,     # España Primera y Segunda
+    2, 9,         # Inglaterra Premier y Championship
+    8,            # Alemania Bundesliga
+    11,           # Italia Serie A
+    14,           # Francia Ligue 1
+    16,           # Holanda Eredivisie
+    18,           # Portugal Primeira Liga
+    166,          # México Liga MX
+    182,          # Brasil Serie A
+    263,          # Colombia Primera A
+    264,          # Argentina Primera División
+    61, 62,       # Copa Libertadores y Sudamericana
+    253,          # MLS
+    3,            # Europa League
+    # Agrega más IDs si tienes confirmados
 }
 
 def escape_html(text):
@@ -58,7 +54,8 @@ class Bot:
                 print(f"[Telegram] Mensaje enviado correctamente")
 
     async def check_live_matches(self):
-        print(f"[{datetime.datetime.now(TZ).strftime('%H:%M:%S')}] Verificando partidos en vivo...")
+        now_str = datetime.datetime.now(TZ).strftime('%H:%M:%S')
+        print(f"[{now_str}] Verificando partidos en vivo...")
 
         filters = '{"status":"live"}'
         filters_enc = urllib.parse.quote_plus(filters)
@@ -66,14 +63,8 @@ class Bot:
         url = (f"https://api.sportmonks.com/v3/football/fixtures?"
                f"api_token={API_KEY}&include=events,stats,participants&filters={filters_enc}")
 
-        print(f"[Partidos en vivo] Solicitud GET con filtro codificado: {url}")
-
         try:
             async with self.session.get(url) as response:
-                print(f"[Partidos en vivo] Código respuesta: {response.status}")
-                resp_text = await response.text()
-                print(f"[Partidos en vivo] Cuerpo respuesta (primeros 500 caracteres): {resp_text[:500]}...")
-
                 if response.status != 200:
                     print(f"[Partidos en vivo] Error HTTP {response.status}")
                     return
@@ -91,7 +82,8 @@ class Bot:
 
                     home = escape_html(participants[0].get("name", "Local"))
                     away = escape_html(participants[1].get("name", "Visitante"))
-                    score = escape_html(f"{participants[0].get('score',0)} - {participants[1].get('score',0)}")
+                    score = f"{participants[0].get('score',0)} - {participants[1].get('score',0)}"
+                    score = escape_html(score)
                     minute = match.get("time", {}).get("minute") or 0
 
                     # Eventos
@@ -102,6 +94,7 @@ class Bot:
                         event_type = event.get("type", "").lower()
                         safe_comment = escape_html(comment_raw)
 
+                        # Gol anulado por VAR y variantes
                         if (event_type == "goal_cancelled" or any(x in comment for x in [
                             "goal cancelled", "goal disallowed", "disallowed goal",
                             "offside", "handball", "foul", "var", "interference"
@@ -113,6 +106,7 @@ class Bot:
                             await self.send_telegram_message(msg)
                             break
 
+                        # Tiros al palo o larguero (incluye variantes)
                         if "post" in comment or "crossbar" in comment:
                             msg = (f"⚠️ <b>¡Tiro al palo!</b>\n"
                                    f"<b>{home} vs {away}</b>\n"
@@ -121,6 +115,7 @@ class Bot:
                             await self.send_telegram_message(msg)
                             break
 
+                        # Tarjeta amarilla temprana (primeros 9 minutos)
                         if event_type == "yellowcard" and minute <= 9:
                             msg = (f"🟨 <b>Tarjeta amarilla temprana</b>\n"
                                    f"<b>{home} vs {away}</b>\n"
@@ -129,7 +124,7 @@ class Bot:
                             await self.send_telegram_message(msg)
                             break
 
-                    # Estadísticas
+                    # Estadísticas para tiros a puerta y xG
                     stats = match.get("stats", [])
                     for stat in stats:
                         team = escape_html(stat.get("participant_name", "Equipo"))
@@ -139,12 +134,14 @@ class Bot:
                         if minute <= 30:
                             if shots_on_target >= 4:
                                 msg = (f"🔥 <b>{team}</b> tiene <b>{shots_on_target}</b> remates a puerta antes del minuto 30\n"
-                                       f"<b>{home} vs {away}</b>\nResultado: <b>{score}</b>")
+                                       f"<b>{home} vs {away}</b>\n"
+                                       f"Resultado: <b>{score}</b>")
                                 await self.send_telegram_message(msg)
 
                             if xg and float(xg) >= 1.5:
                                 msg = (f"🔎 <b>{team}</b> supera 1.5 xG antes del minuto 30\n"
-                                       f"<b>{home} vs {away}</b>\nResultado: <b>{score}</b>\n"
+                                       f"<b>{home} vs {away}</b>\n"
+                                       f"Resultado: <b>{score}</b>\n"
                                        f"xG: <b>{xg}</b>")
                                 await self.send_telegram_message(msg)
 
@@ -154,7 +151,7 @@ class Bot:
     async def run(self):
         while True:
             await self.check_live_matches()
-            await asyncio.sleep(40)  # Revisa cada 40 segundos
+            await asyncio.sleep(40)
 
     async def close(self):
         await self.session.close()
