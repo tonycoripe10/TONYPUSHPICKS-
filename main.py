@@ -91,7 +91,8 @@ class Bot:
 
     async def check_live_matches(self):
         print(f"[{datetime.datetime.now(TZ).strftime('%H:%M:%S')}] Verificando partidos en vivo...")
-        url = f"https://api.sportmonks.com/v3/football/fixtures?api_token={API_KEY}&include=events,stats,participants&filters[status]=LIVE"
+        # CORRECCIÓN AQUÍ: Cambiar filters a filter y LIVE a live
+        url = f"https://api.sportmonks.com/v3/football/fixtures?api_token={API_KEY}&include=events,stats,participants&filter[status]=live"
         try:
             async with self.session.get(url) as response:
                 if response.status != 200:
