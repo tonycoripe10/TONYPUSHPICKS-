@@ -5,6 +5,7 @@ import aiohttp
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import html
+from dateutil import parser
 
 API_KEY = os.getenv("APIkey")
 TELEGRAM_TOKEN = os.getenv("Telegramtoken")
@@ -18,13 +19,17 @@ COMPETITION_IDS = [
 ]
 
 def escape_html(text):
-    return html.escape(str(text))[:4000]
+    return html.escape(str(text))
 
 class Bot:
     def __init__(self):
         self.session = None
 
     async def start(self):
+        if not TELEGRAM_TOKEN or not CHAT_ID or not API_KEY:
+            print("ERROR: Variables de entorno no definidas correctamente")
+            return
+
         self.session = aiohttp.ClientSession()
         await self.send_startup_message()
 
@@ -36,7 +41,7 @@ class Bot:
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         payload = {"chat_id": CHAT_ID, "text": text, "parse_mode": "HTML"}
         try:
-            async with self.session.post(url, data=payload) as resp:
+            async with self.session.post(url, json=payload) as resp:
                 if resp.status != 200:
                     print(f"[Telegram] Error {resp.status}: {await resp.text()}")
         except Exception as e:
@@ -77,7 +82,7 @@ class Bot:
                     if not dt_str:
                         continue
                     try:
-                        start = datetime.datetime.fromisoformat(dt_str).astimezone(TZ)
+                        start = parser.isoparse(dt_str).astimezone(TZ)
                     except Exception:
                         continue
                     partidos.append(f"🕒 <b>{start.strftime('%H:%M')}</b> - {home} vs {away}")
@@ -91,8 +96,7 @@ class Bot:
 
     async def check_live_matches(self):
         print(f"[{datetime.datetime.now(TZ).strftime('%H:%M:%S')}] Verificando partidos en vivo...")
-        # CORRECCIÓN AQUÍ: Cambiar filters a filter y LIVE a live
-        url = f"https://api.sportmonks.com/v3/football/fixtures?api_token={API_KEY}&include=events,stats,participants&filter[status]=live"
+        url = f"https://api.sportmonks.com/v3/football/fixtures?api_token={API_KEY}&include=events,stats,participants&filter[status]=LIVE"
         try:
             async with self.session.get(url) as response:
                 if response.status != 200:
