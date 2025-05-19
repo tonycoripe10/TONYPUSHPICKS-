@@ -1,125 +1,83 @@
-import os
-import datetime
 import asyncio
 import aiohttp
-import pytz
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import datetime
+import urllib.parse
 import html
-from dateutil import parser
 
-API_KEY = os.getenv("APIkey")
-TELEGRAM_TOKEN = os.getenv("Telegramtoken")
-CHAT_ID = os.getenv("Chatid")
+# Zona horaria para Colombia (ajusta si es necesario)
+import pytz
+TZ = pytz.timezone('America/Bogota')
 
-TZ = pytz.timezone('Europe/Madrid')
+# Variables de entorno o tus tokens aquí (reemplaza con tus datos reales)
+API_KEY = "APIkey"
+TELEGRAM_TOKEN = "Telegramtoken"
+CHAT_ID = "Chatid"
 
-COMPETITION_IDS = [
-    8, 9, 82, 83, 184, 384, 301, 35, 39, 74, 71, 77, 66, 1005, 1013,
-    179, 2, 3, 5, 196
-]
+# Competencias que quieres monitorear (IDs Sportmonks)
+COMPETITION_IDS = {
+    271,  # España Primera
+    272,  # España Segunda
+    2,    # Inglaterra Premier
+    9,    # Inglaterra Championship
+    8,    # Alemania Bundesliga
+    11,   # Italia Serie A
+    14,   # Francia Ligue 1
+    16,   # Holanda Eredivisie
+    18,   # Portugal Primeira Liga
+    166,  # México Liga MX
+    182,  # Brasil Serie A
+    263,  # Colombia Primera A
+    264,  # Argentina Primera Division
+    61,   # Copa Libertadores
+    62,   # Copa Sudamericana
+    253,  # MLS
+    2,    # Champions League (usa mismo id que Inglaterra Premier? verifica)
+    3,    # Europa League (asegura que el id sea correcto)
+    # Añade más ids si tienes
+}
 
 def escape_html(text):
-    return html.escape(str(text))
+    return html.escape(text)
 
 class Bot:
     def __init__(self):
-        self.session = None
-
-    async def start(self):
-        if not TELEGRAM_TOKEN or not CHAT_ID or not API_KEY:
-            print("ERROR: Variables de entorno no definidas correctamente")
-            return
-
         self.session = aiohttp.ClientSession()
-        await self.send_startup_message()
 
-    async def close(self):
-        if self.session:
-            await self.session.close()
-
-    async def send_telegram_message(self, text):
+    async def send_telegram_message(self, message):
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         payload = {
-            "chat_id": str(CHAT_ID),
-            "text": text,
+            "chat_id": CHAT_ID,
+            "text": message,
             "parse_mode": "HTML",
             "disable_web_page_preview": True
         }
-        try:
-            print(f"[Telegram] Enviando mensaje: {text[:60]}...")
-            async with self.session.post(url, json=payload) as resp:
-                if resp.status != 200:
-                    error_text = await resp.text()
-                    print(f"[Telegram] ERROR HTTP {resp.status} - Mensaje: {text[:60]}...")
-                    print(f"Respuesta Telegram: {error_text}")
-                else:
-                    print(f"[Telegram] Mensaje enviado correctamente.")
-        except Exception as e:
-            print(f"[Telegram Error] {e}")
-
-    async def send_startup_message(self):
-        now = datetime.datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-        msg = f"✅ <b>Bot en marcha</b>\nHora: <i>{now}</i>"
-        await self.send_telegram_message(msg)
-
-    async def send_daily_summary(self, region):
-        now = datetime.datetime.now(TZ)
-        if region == "EU":
-            target_date = now.strftime('%Y-%m-%d')
-            header = "📋 <b>Partidos del día (Europa)</b>\n\n"
-        else:
-            target_date = (now + datetime.timedelta(hours=2)).strftime('%Y-%m-%d')
-            header = "🌎 <b>Partidos del día (Sudamérica y MLS)</b>\n\n"
-
-        url = f"https://api.sportmonks.com/v3/football/fixtures/date/{target_date}?api_token={API_KEY}&include=participants,league"
-        print(f"[Resumen diario] Solicitud GET: {url}")
-        try:
-            async with self.session.get(url) as response:
-                print(f"[Resumen diario] Código respuesta: {response.status}")
-                resp_text = await response.text()
-                print(f"[Resumen diario] Cuerpo respuesta: {resp_text[:500]}...")
-                if response.status != 200:
-                    print(f"[Resumen diario] Error HTTP {response.status}")
-                    return
-                data = await response.json()
-                partidos = []
-                for match in data.get("data", []):
-                    league_id = match.get("league_id")
-                    if not isinstance(league_id, int) or league_id not in COMPETITION_IDS:
-                        continue
-                    participants = match.get("participants", [])
-                    if len(participants) < 2:
-                        continue
-                    home = escape_html(participants[0].get("name", "Equipo Local"))
-                    away = escape_html(participants[1].get("name", "Equipo Visitante"))
-                    dt_str = match.get("starting_at", {}).get("date_time")
-                    if not dt_str:
-                        continue
-                    try:
-                        start = parser.isoparse(dt_str).astimezone(TZ)
-                    except Exception:
-                        continue
-                    partidos.append(f"🕒 <b>{start.strftime('%H:%M')}</b> - {home} vs {away}")
-
-                partidos.sort()
-                msg = header + ("\n".join(partidos) if partidos else "No hay partidos programados hoy.")
-                await self.send_telegram_message(msg)
-
-        except Exception as e:
-            print(f"[Resumen diario] Error: {e}")
+        async with self.session.post(url, data=payload) as resp:
+            if resp.status != 200:
+                print(f"[Telegram] Error enviando mensaje: {resp.status}")
+            else:
+                print(f"[Telegram] Mensaje enviado correctamente")
 
     async def check_live_matches(self):
         print(f"[{datetime.datetime.now(TZ).strftime('%H:%M:%S')}] Verificando partidos en vivo...")
-        url = f"https://api.sportmonks.com/v3/football/fixtures?api_token={API_KEY}&include=events,stats,participants&filters[status]=live"
-        print(f"[Partidos en vivo] Solicitud GET: {url}")
+
+        filters = '{"status":"live"}'
+        filters_enc = urllib.parse.quote_plus(filters)
+
+        url = (f"https://api.sportmonks.com/v3/football/fixtures?"
+               f"api_token={API_KEY}&include=events,stats,participants&filters={filters_enc}")
+
+        print(f"[Partidos en vivo] Solicitud GET con filtro codificado: {url}")
+
         try:
             async with self.session.get(url) as response:
                 print(f"[Partidos en vivo] Código respuesta: {response.status}")
                 resp_text = await response.text()
-                print(f"[Partidos en vivo] Cuerpo respuesta: {resp_text[:500]}...")
+                print(f"[Partidos en vivo] Cuerpo respuesta (primeros 500 caracteres): {resp_text[:500]}...")
+
                 if response.status != 200:
                     print(f"[Partidos en vivo] Error HTTP {response.status}")
                     return
+
                 data = await response.json()
 
                 for match in data.get("data", []):
@@ -193,24 +151,19 @@ class Bot:
         except Exception as e:
             print(f"[Error en partidos en vivo] {e}")
 
-async def main():
-    bot = Bot()
-    await bot.start()
-
-    scheduler = AsyncIOScheduler(timezone=TZ)
-    scheduler.add_job(bot.send_daily_summary, "cron", hour=9, minute=0, args=["EU"])
-    scheduler.add_job(bot.send_daily_summary, "cron", hour=0, minute=0, args=["SA"])
-    scheduler.add_job(bot.check_live_matches, "interval", seconds=40)
-    scheduler.start()
-
-    try:
+    async def run(self):
         while True:
-            await asyncio.sleep(3600)
-    finally:
-        await bot.close()
+            await self.check_live_matches()
+            await asyncio.sleep(40)  # Revisa cada 40 segundos
+
+    async def close(self):
+        await self.session.close()
 
 if __name__ == "__main__":
+    bot = Bot()
     try:
-        asyncio.run(main())
+        asyncio.run(bot.run())
     except KeyboardInterrupt:
-        print("Bot detenido manualmente.")
+        print("Bot detenido por usuario.")
+    finally:
+        asyncio.run(bot.close())
