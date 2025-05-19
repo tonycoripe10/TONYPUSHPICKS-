@@ -39,11 +39,19 @@ class Bot:
 
     async def send_telegram_message(self, text):
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        payload = {"chat_id": CHAT_ID, "text": text, "parse_mode": "HTML"}
+        payload = {
+            "chat_id": str(CHAT_ID),
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True
+        }
         try:
+            print(f"[Telegram] Enviando mensaje: {text[:60]}...")
             async with self.session.post(url, json=payload) as resp:
                 if resp.status != 200:
-                    print(f"[Telegram] ERROR HTTP {resp.status}")
+                    error_text = await resp.text()
+                    print(f"[Telegram] ERROR HTTP {resp.status} - Mensaje: {text[:60]}...")
+                    print(f"Respuesta Telegram: {error_text}")
                 else:
                     print(f"[Telegram] Mensaje enviado correctamente.")
         except Exception as e:
@@ -64,8 +72,12 @@ class Bot:
             header = "🌎 <b>Partidos del día (Sudamérica y MLS)</b>\n\n"
 
         url = f"https://api.sportmonks.com/v3/football/fixtures/date/{target_date}?api_token={API_KEY}&include=participants,league"
+        print(f"[Resumen diario] Solicitud GET: {url}")
         try:
             async with self.session.get(url) as response:
+                print(f"[Resumen diario] Código respuesta: {response.status}")
+                resp_text = await response.text()
+                print(f"[Resumen diario] Cuerpo respuesta: {resp_text[:500]}...")
                 if response.status != 200:
                     print(f"[Resumen diario] Error HTTP {response.status}")
                     return
@@ -99,8 +111,12 @@ class Bot:
     async def check_live_matches(self):
         print(f"[{datetime.datetime.now(TZ).strftime('%H:%M:%S')}] Verificando partidos en vivo...")
         url = f"https://api.sportmonks.com/v3/football/fixtures?api_token={API_KEY}&include=events,stats,participants&filters[status]=live"
+        print(f"[Partidos en vivo] Solicitud GET: {url}")
         try:
             async with self.session.get(url) as response:
+                print(f"[Partidos en vivo] Código respuesta: {response.status}")
+                resp_text = await response.text()
+                print(f"[Partidos en vivo] Cuerpo respuesta: {resp_text[:500]}...")
                 if response.status != 200:
                     print(f"[Partidos en vivo] Error HTTP {response.status}")
                     return
