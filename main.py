@@ -72,7 +72,14 @@ def monitorear_eventos():
                 print(f"[ERROR] Error al obtener datos del fixture {fixture_id}: {e}")
                 continue
 
-            eventos = data.get("data", {}).get("events", [])
+            fixture = data.get("data", {})
+            status = fixture.get("status", {}).get("type")
+
+            if status != "live":
+                print(f"[INFO] Partido ID {fixture_id} no está en vivo (estado: {status}).")
+                continue
+
+            eventos = fixture.get("events", [])
             for evento in eventos:
                 evento_id = evento.get("id")
                 if evento_id and evento_id not in ya_reportados:
