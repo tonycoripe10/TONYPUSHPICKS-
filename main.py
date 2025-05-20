@@ -39,7 +39,7 @@ def obtener_partidos():
             local = partido["localTeam"]["data"]["name"]
             visitante = partido["visitorTeam"]["data"]["name"]
             liga = partido["league"]["data"]["name"]
-            hora = partido["time"]["starting_at"]["time"] if "time" in partido and partido["time"].get("starting_at") else "Hora no disponible"
+            hora = partido.get("time", {}).get("starting_at", {}).get("time", "Hora no disponible")
             mensajes.append(f"{local} vs {visitante} ({liga}) - {hora}")
 
         return "\n".join(mensajes)
