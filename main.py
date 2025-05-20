@@ -45,12 +45,17 @@ def obtener_partidos():
         return "\n".join(mensajes)
 
     except requests.exceptions.RequestException as e:
-        logging.error(f"Error al obtener partidos: {e}")
+        logging.error(f"[ERROR] Error al obtener partidos: {e}")
         return "Error al obtener los partidos."
 
 def enviar_partidos():
     mensaje = obtener_partidos()
-    bot.send_message(chat_id=CHAT_ID, text=mensaje)
+    logging.info(f"[INFO] Mensaje generado:\n{mensaje}")
+    try:
+        bot.send_message(chat_id=CHAT_ID, text=mensaje)
+        logging.info("[INFO] Mensaje enviado a Telegram.")
+    except Exception as e:
+        logging.error(f"[ERROR] Error al enviar mensaje a Telegram: {e}")
 
 if __name__ == "__main__":
     enviar_partidos()
