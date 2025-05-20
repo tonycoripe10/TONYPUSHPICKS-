@@ -1,19 +1,15 @@
 import requests
+import os
 
-API_TOKEN = 'Sportmonks'
-headers = {
-    'Authorization': f'Bearer {API_TOKEN}',
-    'Accept': 'application/json'
-}
+SPORTMONKS_TOKEN = os.getenv("SPORTMONKS_TOKEN")  # o reemplaza con el token directamente
 
+url = "https://api.sportmonks.com/v3/football/livescores"
 params = {
-    'include': 'events,stats,localTeam,visitorTeam,league',
-    'filters[league_id]': '8,39,46,135,61,88,109,262,71,168,78'
+    "api_token": SPORTMONKS_TOKEN,
+    "include": "participants;league;events;statistics"
 }
 
-response = requests.get('https://api.sportmonks.com/v3/football/fixtures/live', headers=headers, params=params)
+response = requests.get(url, params=params)
 
-if response.status_code == 200:
-    live_fixtures = response.json()['data']
-else:
-    print(f'Error al obtener partidos en vivo: {response.status_code} - {response.text}')
+print("Código de estado:", response.status_code)
+print("Contenido:", response.text)
