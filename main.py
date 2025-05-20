@@ -19,7 +19,7 @@ def obtener_partidos():
     url = (
         f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}"
         f"?api_token={SPORTMONKS_TOKEN}"
-        f"&include=localteam;visitorteam;league"
+        f"&include=participants;league"
     )
     logging.info(f"Solicitando fixtures del {hoy}")
     try:
@@ -33,11 +33,17 @@ def obtener_partidos():
 
         mensajes = []
         for f in data:
-            liga   = f.get("league", {}).get("data", {}).get("name", "Liga desconocida")
-            local  = f.get("localteam", {}).get("data", {}).get("name", "Equipo local")
-            visit  = f.get("visitorteam", {}).get("data", {}).get("name", "Equipo visitante")
-            hora   = f.get("time", {}).get("starting_at", {}).get("time", "Hora no disponible")
-            mensajes.append(f"<b>{liga}</b>\n{local} vs {visit} 🕒 {hora}")
+            liga = f.get("league", {}).get("data", {}).get("name", "Liga desconocida")
+            participantes = f.get("participants", {}).get("data", [])
+
+            local = next((p for p in participantes if p.get("meta", {}).get("location") == "home"), None)
+            visitante = next((p for p in participantes if p.get("meta", {}).get("location") == "away"), None)
+
+            local_name = local.get("name", "Equipo local") if local else "Equipo local"
+            visitante_name = visitante.get("name", "Equipo visitante") if visitante else "Equipo visitante"
+            hora = f.get("time", {}).get("starting_at", {}).get("time", "Hora no disponible")
+
+            mensajes.append(f"<b>{liga}</b>\n{local_name} vs {visitante_name} 🕒 {hora}")
 
         return "\n\n".join(mensajes)
 
