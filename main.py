@@ -20,7 +20,7 @@ def obtener_partidos():
 
     params = {
         "api_token": SPORTMONKS_TOKEN,
-        "filter[date]": fecha_actual,
+        "filters": f"date={fecha_actual}",
         "include": "localTeam;visitorTeam;league"
     }
 
