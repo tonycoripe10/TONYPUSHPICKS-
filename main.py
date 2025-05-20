@@ -1,65 +1,47 @@
-import requests
-import logging
-from datetime import datetime
-from telegram import Bot
 import os
+import requests
+import datetime
+import telegram
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
-
-# Variables de entorno (Railway)
-TELEGRAM_TOKEN   = os.environ.get("Telegramtoken")
-CHAT_ID          = os.environ.get("Chatid")
-SPORTMONKS_TOKEN = os.environ.get("Sportmonks")
-
-bot = Bot(token=TELEGRAM_TOKEN)
+SPORTMONKS_API_KEY = os.getenv("Sportmonks")
+TELEGRAM_TOKEN = os.getenv("Telegramtoken")
+TELEGRAM_CHAT_ID = os.getenv("Chatid")
 
 def obtener_partidos():
-    hoy = datetime.now().strftime("%Y-%m-%d")
-    url = (
-        f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}"
-        f"?api_token={SPORTMONKS_TOKEN}"
-        f"&include=participants;league"
-    )
-    logging.info(f"Solicitando partidos del {hoy}...")
+    hoy = datetime.datetime.now().strftime("%Y-%m-%d")
+    print(f"[INFO] Solicitando partidos del {hoy}...")
 
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json().get("data", [])
+    url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants"
+    response = requests.get(url)
+    data = response.json()
 
-        if not data:
-            logging.info("No hay partidos programados para hoy.")
-            return "No hay partidos programados para hoy."
+    if "data" not in data:
+        return "[ERROR] No se encontraron partidos."
 
-        mensajes = []
-        for partido in data:
-            liga = partido.get("league", {}).get("data", {}).get("name", "Liga desconocida")
-            hora = partido.get("time", {}).get("starting_at", {}).get("time", "Hora no disponible")
+    partidos = data["data"]
+    if not partidos:
+        return "Hoy no hay partidos programados."
 
-            participantes = partido.get("participants", {}).get("data", [])
-            local = next((p for p in participantes if p.get("meta", {}).get("location") == "home"), {})
-            visitante = next((p for p in participantes if p.get("meta", {}).get("location") == "away"), {})
+    mensaje = f"Partidos para hoy ({hoy}):\n\n"
+    for partido in partidos:
+        participantes = partido.get("participants", [])
 
-            local_name = local.get("name", "Equipo local")
-            visitante_name = visitante.get("name", "Equipo visitante")
+        local = visitante = "Por definir"
+        for p in participantes:
+            if p.get("meta", {}).get("location") == "home":
+                local = p.get("name", "Desconocido")
+            elif p.get("meta", {}).get("location") == "away":
+                visitante = p.get("name", "Desconocido")
 
-            mensajes.append(f"<b>{liga}</b>\n{local_name} vs {visitante_name} 🕒 {hora}")
+        hora = partido.get("time", {}).get("starting_at", {}).get("time", "Hora no disponible")
+        mensaje += f"{local} vs {visitante} - {hora}\n"
 
-        return "\n\n".join(mensajes)
-
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Error al obtener partidos: {e}")
-        return "Hubo un error al obtener los partidos."
+    return mensaje.strip()
 
 def enviar_partidos():
     mensaje = obtener_partidos()
-    logging.info(f"Mensaje generado:\n{mensaje}")
-    try:
-        bot.send_message(chat_id=CHAT_ID, text=mensaje, parse_mode="HTML")
-        logging.info("Mensaje enviado correctamente a Telegram.")
-    except Exception as e:
-        logging.error(f"Error al enviar mensaje a Telegram: {e}")
+    bot = telegram.Bot(token=TELEGRAM_TOKEN)
+    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje)
 
 if __name__ == "__main__":
     enviar_partidos()
