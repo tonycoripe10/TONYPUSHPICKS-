@@ -36,7 +36,12 @@ def obtener_partidos():
             elif p.get("meta", {}).get("location") == "away":
                 visitante = p.get("name", "Desconocido")
 
-        hora = partido.get("time", {}).get("starting_at", {}).get("time", "Hora no disponible")
+        hora_raw = partido.get("starting_at", None)
+        try:
+            hora = datetime.datetime.fromisoformat(hora_raw).strftime("%H:%M") if hora_raw else "Hora no disponible"
+        except Exception:
+            hora = "Hora no disponible"
+
         liga = partido.get("league", {}).get("name", "Liga desconocida")
         pais = partido.get("league", {}).get("country", {}).get("name", "País desconocido")
 
