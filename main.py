@@ -15,7 +15,7 @@ LEAGUE_IDS = [
 def obtener_partidos_de_hoy():
     hoy = datetime.now().strftime('%Y-%m-%d')
     print(f"[INFO] Obteniendo partidos para la fecha: {hoy}")
-    url = f'https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=league,localTeam,visitorTeam,time'
+    url = f'https://soccer.sportmonks.com/api/v2.0/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=localTeam,visitorTeam,league'
 
     try:
         response = requests.get(url)
