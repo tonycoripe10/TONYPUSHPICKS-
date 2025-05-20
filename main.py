@@ -36,9 +36,7 @@ def obtener_partidos():
             liga   = f["league"]["data"]["name"]
             local  = f["localTeam"]["data"]["name"]
             visit  = f["visitorTeam"]["data"]["name"]
-            hora   = f.get("starting_at", "Hora no disponible")
-            # `starting_at` viene como "YYYY-MM-DD HH:MM:SS"
-            hora = hora.split(" ")[1] if " " in hora else hora
+            hora   = f.get("time", {}).get("starting_at", {}).get("time", "Hora no disponible")
             mensajes.append(f"<b>{liga}</b>\n{local} vs {visit} 🕒 {hora}")
 
         return "\n\n".join(mensajes)
