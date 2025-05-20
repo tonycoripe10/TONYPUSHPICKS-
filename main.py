@@ -1,4 +1,3 @@
-# main.py
 import requests
 import os
 from datetime import datetime
@@ -15,6 +14,7 @@ LEAGUE_IDS = [
 
 def obtener_partidos_de_hoy():
     hoy = datetime.now().strftime('%Y-%m-%d')
+    print(f"[INFO] Obteniendo partidos para la fecha: {hoy}")
     url = f'https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=league,localTeam,visitorTeam,time'
 
     try:
@@ -26,6 +26,7 @@ def obtener_partidos_de_hoy():
         mensaje = f"<b>=== Partidos del {hoy} ===</b>\n\n"
 
         if not partidos:
+            print("[INFO] No se encontraron partidos para hoy.")
             mensaje += "No hay partidos programados para hoy."
             return mensaje
 
@@ -39,15 +40,20 @@ def obtener_partidos_de_hoy():
             visitante = partido.get('visitorTeam', {}).get('name', 'Visitante')
             hora = partido.get('time', {}).get('starting_at', {}).get('time', 'Hora desconocida')
 
+            print(f"[PARTIDO] {liga}: {local} vs {visitante} a las {hora}")
+
             mensaje += f"<b>{liga}</b>\n"
             mensaje += f"<i>{local}</i> vs <i>{visitante}</i> 🕒 {hora}\n\n"
 
         return mensaje.strip()
 
     except requests.RequestException as e:
-        return f"Error al obtener partidos: {e}"
+        error_msg = f"[ERROR] Error al obtener partidos: {e}"
+        print(error_msg)
+        return error_msg
 
 def enviar_mensaje_telegram(mensaje):
+    print("[INFO] Enviando mensaje a Telegram...")
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         'chat_id': TELEGRAM_CHAT_ID,
@@ -58,10 +64,12 @@ def enviar_mensaje_telegram(mensaje):
     try:
         response = requests.post(url, data=payload)
         response.raise_for_status()
-        print("Mensaje enviado correctamente al grupo.")
+        print("[SUCCESS] Mensaje enviado correctamente al grupo.")
     except requests.RequestException as e:
-        print("Error al enviar mensaje a Telegram:", e)
+        print(f"[ERROR] Error al enviar mensaje a Telegram: {e}")
 
 if __name__ == "__main__":
+    print("[START] Ejecutando script de partidos del día.")
     mensaje = obtener_partidos_de_hoy()
     enviar_mensaje_telegram(mensaje)
+    print("[END] Script finalizado.")
