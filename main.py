@@ -15,7 +15,7 @@ LEAGUE_IDS = [
 def obtener_partidos_de_hoy():
     hoy = datetime.now().strftime('%Y-%m-%d')
     print(f"[INFO] Obteniendo partidos para la fecha: {hoy}")
-    url = f'https://soccer.sportmonks.com/api/v2.0/fixtures?api_token={SPORTMONKS_API_KEY}&date={hoy}&include=localTeam,visitorTeam,league'
+    url = f'https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=localTeam;visitorTeam;league'
 
     try:
         response = requests.get(url)
@@ -31,18 +31,19 @@ def obtener_partidos_de_hoy():
             return mensaje
 
         for partido in partidos:
-            liga_id = partido.get('league', {}).get('id')
+            liga_info = partido.get('league', {}).get('data', {})
+            liga_id = liga_info.get('id')
             if liga_id not in LEAGUE_IDS:
                 continue
 
-            liga = partido.get('league', {}).get('name', 'Desconocida')
-            local = partido.get('localTeam', {}).get('name', 'Local')
-            visitante = partido.get('visitorTeam', {}).get('name', 'Visitante')
-            hora = partido.get('time', {}).get('starting_at', {}).get('time', 'Hora desconocida')
+            liga_nombre = liga_info.get('name', 'Desconocida')
+            local = partido.get('localTeam', {}).get('data', {}).get('name', 'Local')
+            visitante = partido.get('visitorTeam', {}).get('data', {}).get('name', 'Visitante')
+            hora = partido.get('starting_at', {}).get('time', 'Hora desconocida')
 
-            print(f"[PARTIDO] {liga}: {local} vs {visitante} a las {hora}")
+            print(f"[PARTIDO] {liga_nombre}: {local} vs {visitante} a las {hora}")
 
-            mensaje += f"<b>{liga}</b>\n"
+            mensaje += f"<b>{liga_nombre}</b>\n"
             mensaje += f"<i>{local}</i> vs <i>{visitante}</i> 🕒 {hora}\n\n"
 
         return mensaje.strip()
