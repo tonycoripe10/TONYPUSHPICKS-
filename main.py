@@ -5,57 +5,56 @@ from telegram import Bot
 import os
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
 # Variables de entorno
-TELEGRAM_TOKEN = os.environ.get("Telegramtoken")
-CHAT_ID = os.environ.get("Chatid")
+TELEGRAM_TOKEN   = os.environ.get("Telegramtoken")
+CHAT_ID          = os.environ.get("Chatid")
 SPORTMONKS_TOKEN = os.environ.get("Sportmonks")
 
 bot = Bot(token=TELEGRAM_TOKEN)
 
 def obtener_partidos():
-    url = "https://api.sportmonks.com/v3/football/fixtures"
-    fecha_actual = datetime.now().strftime("%Y-%m-%d")
-
-    params = {
-        "api_token": SPORTMONKS_TOKEN,
-        "filters": f"date={fecha_actual}",
-        "include": "localTeam;visitorTeam;league"
-    }
-
+    hoy = datetime.now().strftime("%Y-%m-%d")
+    url = (
+        f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}"
+        f"?api_token={SPORTMONKS_TOKEN}"
+        f"&include=localTeam;visitorTeam;league"
+    )
+    logging.info(f"Solicitando fixtures del {hoy}")
     try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
+        resp = requests.get(url)
+        resp.raise_for_status()
+        data = resp.json().get("data", [])
 
-        fixtures = data.get("data", [])
-        if not fixtures:
+        if not data:
             logging.info("No hay partidos para hoy.")
             return "No hay partidos programados para hoy."
 
         mensajes = []
-        for partido in fixtures:
-            local = partido["localTeam"]["data"]["name"]
-            visitante = partido["visitorTeam"]["data"]["name"]
-            liga = partido["league"]["data"]["name"]
-            hora = partido.get("time", {}).get("starting_at", {}).get("time", "Hora no disponible")
-            mensajes.append(f"{local} vs {visitante} ({liga}) - {hora}")
+        for f in data:
+            liga   = f["league"]["data"]["name"]
+            local  = f["localTeam"]["data"]["name"]
+            visit  = f["visitorTeam"]["data"]["name"]
+            hora   = f.get("starting_at", "Hora no disponible")
+            # `starting_at` viene como "YYYY-MM-DD HH:MM:SS"
+            hora = hora.split(" ")[1] if " " in hora else hora
+            mensajes.append(f"<b>{liga}</b>\n{local} vs {visit} 🕒 {hora}")
 
-        return "\n".join(mensajes)
+        return "\n\n".join(mensajes)
 
     except requests.exceptions.RequestException as e:
-        logging.error(f"[ERROR] Error al obtener partidos: {e}")
-        return "Error al obtener los partidos."
+        logging.error(f"Error al obtener partidos: {e}")
+        return f"Error al obtener partidos: {e}"
 
 def enviar_partidos():
     mensaje = obtener_partidos()
-    logging.info(f"[INFO] Mensaje generado:\n{mensaje}")
+    logging.info(f"Mensaje generado:\n{mensaje}")
     try:
-        bot.send_message(chat_id=CHAT_ID, text=mensaje)
-        logging.info("[INFO] Mensaje enviado a Telegram.")
+        bot.send_message(chat_id=CHAT_ID, text=mensaje, parse_mode="HTML")
+        logging.info("Mensaje enviado correctamente a Telegram.")
     except Exception as e:
-        logging.error(f"[ERROR] Error al enviar mensaje a Telegram: {e}")
+        logging.error(f"Error al enviar mensaje a Telegram: {e}")
 
 if __name__ == "__main__":
     enviar_partidos()
