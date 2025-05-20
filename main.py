@@ -55,7 +55,7 @@ def send_telegram_message(text):
 
 # Obtener partidos en vivo de las competiciones objetivo
 def get_live_matches():
-    url = f"{SPORTMONKS_API_BASE}/fixtures/live"
+    url = f"{SPORTMONKS_API_BASE}/fixtures/live?api_token"
     params = {
         'api_token': SPORTMONKS_TOKEN,
         'include': 'stats,events,localTeam,visitorTeam,league',
