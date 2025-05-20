@@ -3,6 +3,7 @@ import requests
 import datetime
 import time
 import telegram
+import pytz
 
 SPORTMONKS_API_KEY = os.getenv("Sportmonks")
 TELEGRAM_TOKEN = os.getenv("Telegramtoken")
@@ -10,6 +11,9 @@ TELEGRAM_CHAT_ID = os.getenv("Chatid")
 
 bot = telegram.Bot(token=TELEGRAM_TOKEN)
 PARTIDOS_DEL_DIA = []
+
+utc = pytz.utc
+madrid = pytz.timezone("Europe/Madrid")
 
 def obtener_partidos():
     global PARTIDOS_DEL_DIA
@@ -43,15 +47,20 @@ def obtener_partidos():
             elif p.get("meta", {}).get("location") == "away":
                 visitante = p.get("name", "Desconocido")
 
-        hora_iso = partido.get("starting_at", {}).get("date_time")
-        hora_partido = datetime.datetime.fromisoformat(hora_iso.replace("Z", "+00:00")) if hora_iso else None
+        hora_iso = partido.get("starting_at")  # Ya es un string ISO
+        hora_partido = None
+        if hora_iso:
+            hora_utc = datetime.datetime.fromisoformat(hora_iso.replace("Z", "+00:00"))
+            hora_utc = utc.localize(hora_utc)
+            hora_partido = hora_utc.astimezone(madrid)
+
         liga = partido.get("league", {}).get("name", "Liga desconocida")
         pais = partido.get("league", {}).get("country", {}).get("name", "País desconocido")
 
         mensaje += (
             f"⚽ *{local}* vs *{visitante}*\n"
             f"🏆 Liga: _{liga}_ ({pais})\n"
-            f"🕒 Hora: {hora_partido.strftime('%H:%M UTC') if hora_partido else 'No disponible'}\n\n"
+            f"🕒 Hora: {hora_partido.strftime('%H:%M %Z') if hora_partido else 'No disponible'}\n\n"
         )
 
         if hora_partido:
@@ -73,7 +82,7 @@ def monitorear_eventos():
     print(f"[INFO] Monitoreo preparado para {len(partidos_pendientes)} partidos...")
 
     while partidos_pendientes:
-        ahora = datetime.datetime.utcnow()
+        ahora = datetime.datetime.now(madrid)
         for partido in partidos_pendientes[:]:
             fixture_id = partido["id"]
             hora_inicio = partido["hora"]
