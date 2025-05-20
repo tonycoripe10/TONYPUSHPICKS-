@@ -11,7 +11,7 @@ def obtener_partidos():
     hoy = datetime.datetime.now().strftime("%Y-%m-%d")
     print(f"[INFO] Solicitando partidos del {hoy}...")
 
-    url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants"
+    url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants;league;country"
     response = requests.get(url)
     data = response.json()
 
@@ -34,7 +34,14 @@ def obtener_partidos():
                 visitante = p.get("name", "Desconocido")
 
         hora = partido.get("time", {}).get("starting_at", {}).get("time", "Hora no disponible")
-        mensaje += f"⚽ *{local}* vs *{visitante}*\n🕒 Hora: {hora}\n\n"
+        liga = partido.get("league", {}).get("name", "Liga desconocida")
+        pais = partido.get("league", {}).get("country", {}).get("name", "País desconocido")
+
+        mensaje += (
+            f"⚽ *{local}* vs *{visitante}*\n"
+            f"🏆 Liga: _{liga}_ ({pais})\n"
+            f"🕒 Hora: {hora}\n\n"
+        )
 
     return mensaje.strip()
 
