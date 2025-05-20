@@ -64,7 +64,7 @@ def evento_relevante(evento):
 def monitorear():
     while True:
         try:
-            url = f"https://api.sportmonks.com/v3/football/fixtures/live?api_token={SPORTMONKS_TOKEN}&include=state,participants,scores,events,statistics"
+            url = f"https://api.sportmonks.com/v3/football/fixtures/livescores?api_token={SPORTMONKS_TOKEN}&include=state,participants,scores,events,statistics"
             response = requests.get(url)
             if response.status_code != 200:
                 print("Error al consultar Sportmonks:", response.text)
