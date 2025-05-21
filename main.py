@@ -4,7 +4,10 @@ import datetime
 import time
 import telegram
 import pytz
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
+# Variables de entorno
 SPORTMONKS_API_KEY = os.getenv("Sportmonks")
 TELEGRAM_TOKEN = os.getenv("Telegramtoken")
 TELEGRAM_CHAT_ID = os.getenv("Chatid")
@@ -12,8 +15,22 @@ TELEGRAM_CHAT_ID = os.getenv("Chatid")
 bot = telegram.Bot(token=TELEGRAM_TOKEN)
 PARTIDOS_DEL_DIA = []
 
+# Zonas horarias
 utc = pytz.utc
 madrid = pytz.timezone("Europe/Madrid")
+
+# Sesión con reintentos
+session = requests.Session()
+retries = Retry(total=5, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504])
+session.mount("https://", HTTPAdapter(max_retries=retries))
+
+def enviar_mensaje(mensaje):
+    try:
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje, parse_mode=telegram.ParseMode.MARKDOWN)
+        return True
+    except Exception as e:
+        print(f"[ERROR] No se pudo enviar mensaje: {e}")
+        return False
 
 def obtener_partidos():
     global PARTIDOS_DEL_DIA
@@ -21,23 +38,22 @@ def obtener_partidos():
     print(f"[INFO] Solicitando partidos del {hoy}...")
 
     url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country"
-    response = requests.get(url)
     try:
+        response = session.get(url, timeout=10)
         data = response.json()
     except Exception as e:
-        print(f"[ERROR] Respuesta inválida: {e}")
+        print(f"[ERROR] No se pudo obtener partidos: {e}")
         return "[ERROR] No se pudieron obtener los partidos."
 
     if "data" not in data:
-        print("[ERROR] No se encontraron datos en la respuesta.")
+        print("[ERROR] Respuesta sin datos.")
         return "[ERROR] No se encontraron partidos."
 
     partidos = data["data"]
     if not partidos:
-        print("[INFO] No hay partidos programados para hoy.")
-        return "📭 *Hoy no hay partidos programados.*"
+        return "📬 *Hoy no hay partidos programados.*"
 
-    mensaje = f"📅 *Partidos para hoy* ({hoy}):\n\n"
+    mensaje = f"🗕️ *Partidos para hoy* ({hoy}):\n\n"
     for partido in partidos:
         PARTICIPANTES = partido.get("participants", [])
         local = visitante = "Por definir"
@@ -75,94 +91,120 @@ def obtener_partidos():
 
     return mensaje.strip()
 
+def obtener_fixture(fixture_id):
+    url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}?api_token={SPORTMONKS_API_KEY}&include=events"
+    try:
+        response = session.get(url, timeout=10)
+        return response.json().get("data", {})
+    except Exception as e:
+        print(f"[ERROR] Falló la consulta del fixture {fixture_id}: {e}")
+        return {}
+
 def monitorear_eventos():
     ya_reportados = set()
     estados_previos = {}
     partidos_pendientes = PARTIDOS_DEL_DIA.copy()
+    tiros_reportados = set()
+
     print(f"[INFO] Monitoreo preparado para {len(partidos_pendientes)} partidos...")
 
     while partidos_pendientes:
         ahora = datetime.datetime.now(madrid)
-
-        partidos_activos = [
-            partido for partido in partidos_pendientes
-            if ahora >= partido["hora"] - datetime.timedelta(minutes=5)
-        ]
+        partidos_activos = [p for p in partidos_pendientes if ahora >= p["hora"] - datetime.timedelta(minutes=5)]
 
         if not partidos_activos:
-            print("[INFO] No hay partidos en juego o próximos. Esperando 30 minutos...")
-            time.sleep(1800)
+            print("[INFO] Nada para monitorear. Reintento en 10 minutos...")
+            time.sleep(600)
             continue
 
         for partido in partidos_activos:
             fixture_id = partido["id"]
-            hora_inicio = partido["hora"]
+            fixture = obtener_fixture(fixture_id)
 
-            url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}?api_token={SPORTMONKS_API_KEY}&include=events"
-            response = requests.get(url)
-            try:
-                data = response.json()
-            except Exception as e:
-                print(f"[ERROR] Error al obtener datos del fixture {fixture_id}: {e}")
+            if not fixture:
                 continue
 
-            fixture = data.get("data", {})
             status = fixture.get("status", {}).get("type")
             estado_anterior = estados_previos.get(fixture_id)
 
             if fixture_id not in estados_previos:
                 estados_previos[fixture_id] = status
-                if status and "INPLAY" in status:
-                    mensaje_inicio = f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado."
-                    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje_inicio, parse_mode=telegram.ParseMode.MARKDOWN)
-                    print(f"[INFO] Partido {fixture_id} ya está en juego desde el primer chequeo.")
+                if status == "INPLAY":
+                    enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
+                elif status in ["FT", "CANCELLED"]:
+                    mensaje = f"⚠️ *{partido['local']} vs {partido['visitante']}* no se jugará. Estado: {status}"
+                    enviar_mensaje(mensaje)
+                    partidos_pendientes.remove(partido)
                 continue
 
             if status != estado_anterior:
-                if status and "INPLAY" in status:
-                    mensaje_inicio = f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado."
-                    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje_inicio, parse_mode=telegram.ParseMode.MARKDOWN)
-                    print(f"[INFO] Partido {fixture_id} ha comenzado.")
+                if status == "INPLAY":
+                    enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
                 elif status in ["FT", "CANCELLED"]:
-                    mensaje_fin = f"✅ *{partido['local']} vs {partido['visitante']}* ha finalizado ({status})."
-                    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje_fin, parse_mode=telegram.ParseMode.MARKDOWN)
-                    print(f"[INFO] Partido {fixture_id} ha terminado ({status}).")
+                    enviar_mensaje(f"✅ *{partido['local']} vs {partido['visitante']}* ha finalizado ({status}).")
                     partidos_pendientes.remove(partido)
-
                 estados_previos[fixture_id] = status
 
-            if not (status and "INPLAY" in status):
+            if status != "INPLAY":
                 continue
 
-            eventos = fixture.get("events", [])
-            for evento in eventos:
+            for evento in fixture.get("events", []):
                 evento_id = evento.get("id")
-                if evento_id and evento_id not in ya_reportados:
-                    tipo = evento.get("type", "Evento")
-                    minuto = evento.get("minute", "¿?")
-                    jugador = evento.get("player", {}).get("name", "Jugador desconocido")
-                    equipo = evento.get("team", {}).get("name", "Equipo")
+                if not evento_id or evento_id in ya_reportados:
+                    continue
 
-                    mensaje = f"📢 *{tipo}* - {equipo}\n👤 {jugador}\n⏱️ Minuto {minuto}"
-                    print(f"[EVENTO] {tipo} | {equipo} | {jugador} | Min {minuto}")
-                    try:
-                        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje, parse_mode=telegram.ParseMode.MARKDOWN)
-                        print(f"[ENVIADO] Evento ID {evento_id} enviado")
-                    except Exception as e:
-                        print(f"[ERROR] Error al enviar evento: {e}")
-                    ya_reportados.add(evento_id)
+                tipo = evento.get("type", "evento").lower()
+                minuto = evento.get("minute", 0)
+                jugador = evento.get("player", {}).get("name", "Jugador desconocido")
+                equipo = evento.get("team", {}).get("name", "Equipo")
+                resultado = evento.get("result", "")
+                detalles = evento.get("details", "")
 
-        print(f"[INFO] Verificación completada. Partidos activos: {len(partidos_activos)}")
-        print("[INFO] Esperando 40 segundos para siguiente verificación...")
+                if tipo == "goal":
+                    if resultado == "under_review":
+                        mensaje = f"🧐 Posible *GOL* para *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto} *(revisión VAR)*"
+                    elif resultado == "confirmed":
+                        mensaje = f"✅ *GOL CONFIRMADO* de *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
+                    elif resultado == "cancelled":
+                        mensaje = f"❌ *GOL ANULADO* para *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
+                    else:
+                        mensaje = f"⚽ *GOL* de *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
+                    if enviar_mensaje(mensaje):
+                        ya_reportados.add(evento_id)
+                    continue
+
+                if tipo in ["hit-woodwork"]:
+                    mensaje = f"🥅 *{tipo.upper()}* - {equipo}\n👤 {jugador}\n⏱️ Minuto {minuto}"
+                    if enviar_mensaje(mensaje):
+                        ya_reportados.add(evento_id)
+                    continue
+
+            stats_url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}/statistics?api_token={SPORTMONKS_API_KEY}"
+            try:
+                stats_response = session.get(stats_url, timeout=10).json()
+                stats_data = stats_response.get("data", [])
+            except Exception as e:
+                print(f"[ERROR] Fallo en estadísticas del fixture {fixture_id}: {e}")
+                continue
+
+            for stat in stats_data:
+                team_name = stat.get("team", {}).get("name", "Equipo")
+                stats_list = stat.get("statistics", [])
+                for item in stats_list:
+                    if item.get("type") == "shots_on_target":
+                        cantidad = int(item.get("value", 0))
+                        clave = (fixture_id, team_name)
+                        if cantidad >= 4 and clave not in tiros_reportados and ahora <= partido["hora"] + datetime.timedelta(minutes=30):
+                            mensaje = f"📊 *{team_name}* ha realizado 4+ tiros a puerta antes del minuto 30."
+                            if enviar_mensaje(mensaje):
+                                tiros_reportados.add(clave)
+
+        print("[INFO] Verificación completada. Esperando 40 segundos...")
         time.sleep(40)
 
 def enviar_partidos():
     mensaje = obtener_partidos()
-    try:
-        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje, parse_mode=telegram.ParseMode.MARKDOWN)
-        print("[INFO] Resumen de partidos enviado.")
-    except Exception as e:
-        print(f"[ERROR] No se pudo enviar el resumen: {e}")
+    enviar_mensaje(mensaje)
 
 if __name__ == "__main__":
     enviar_partidos()
