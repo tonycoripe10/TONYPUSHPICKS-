@@ -129,7 +129,7 @@ def monitorear_eventos():
 
             if fixture_id not in estados_previos:
                 estados_previos[fixture_id] = status
-                if status == "INPLAY":
+                if status == "INPLAY_1ST_HALF":
                     enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
                 elif status in ["FT", "CANCELLED"]:
                     mensaje = f"⚠️ *{partido['local']} vs {partido['visitante']}* no se jugará. Estado: {status}"
@@ -138,14 +138,14 @@ def monitorear_eventos():
                 continue
 
             if status != estado_anterior:
-                if status == "INPLAY":
+                if status == "INPLAY_1ST_HALF":
                     enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
                 elif status in ["FT", "CANCELLED"]:
                     enviar_mensaje(f"✅ *{partido['local']} vs {partido['visitante']}* ha finalizado ({status}).")
                     partidos_pendientes.remove(partido)
                 estados_previos[fixture_id] = status
 
-            if status != "INPLAY":
+            if not status or not status.startswith("INPLAY"):
                 continue
 
             for evento in fixture.get("events", []):
@@ -169,6 +169,12 @@ def monitorear_eventos():
                         mensaje = f"❌ *GOL ANULADO* para *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
                     else:
                         mensaje = f"⚽ *GOL* de *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
+                    if enviar_mensaje(mensaje):
+                        ya_reportados.add(evento_id)
+                    continue
+
+                if tipo == "yellowcard":
+                    mensaje = f"🟨 *Tarjeta amarilla* para *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
                     if enviar_mensaje(mensaje):
                         ya_reportados.add(evento_id)
                     continue
