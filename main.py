@@ -47,7 +47,7 @@ def obtener_partidos():
             elif p.get("meta", {}).get("location") == "away":
                 visitante = p.get("name", "Desconocido")
 
-        hora_iso = partido.get("starting_at")  # Ya es un string ISO
+        hora_iso = partido.get("starting_at")
         hora_partido = None
         if hora_iso:
             hora_utc = datetime.datetime.fromisoformat(hora_iso.replace("Z", "+00:00"))
@@ -83,11 +83,20 @@ def monitorear_eventos():
 
     while partidos_pendientes:
         ahora = datetime.datetime.now(madrid)
-        for partido in partidos_pendientes[:]:
+
+        partidos_activos = [
+            partido for partido in partidos_pendientes
+            if ahora >= partido["hora"] - datetime.timedelta(minutes=5)
+        ]
+
+        if not partidos_activos:
+            print("[INFO] No hay partidos en juego o próximos. Esperando 30 minutos...")
+            time.sleep(1800)
+            continue
+
+        for partido in partidos_activos:
             fixture_id = partido["id"]
             hora_inicio = partido["hora"]
-            if ahora < hora_inicio - datetime.timedelta(minutes=5):
-                continue
 
             url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}?api_token={SPORTMONKS_API_KEY}&include=events"
             response = requests.get(url)
@@ -99,7 +108,6 @@ def monitorear_eventos():
 
             fixture = data.get("data", {})
             status = fixture.get("status", {}).get("type")
-
             estado_anterior = estados_previos.get(fixture_id)
 
             if fixture_id not in estados_previos:
@@ -144,6 +152,7 @@ def monitorear_eventos():
                         print(f"[ERROR] Error al enviar evento: {e}")
                     ya_reportados.add(evento_id)
 
+        print(f"[INFO] Verificación completada. Partidos activos: {len(partidos_activos)}")
         print("[INFO] Esperando 40 segundos para siguiente verificación...")
         time.sleep(40)
 
