@@ -100,14 +100,22 @@ def monitorear_eventos():
             fixture = data.get("data", {})
             status = fixture.get("status", {}).get("type")
 
-            # Detectar cambios de estado
             estado_anterior = estados_previos.get(fixture_id)
+
+            if fixture_id not in estados_previos:
+                estados_previos[fixture_id] = status
+                if status and "INPLAY" in status:
+                    mensaje_inicio = f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado."
+                    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje_inicio, parse_mode=telegram.ParseMode.MARKDOWN)
+                    print(f"[INFO] Partido {fixture_id} ya está en juego desde el primer chequeo.")
+                continue
+
             if status != estado_anterior:
-                if status == "live":
+                if status and "INPLAY" in status:
                     mensaje_inicio = f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado."
                     bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje_inicio, parse_mode=telegram.ParseMode.MARKDOWN)
                     print(f"[INFO] Partido {fixture_id} ha comenzado.")
-                elif status in ["finished", "cancelled"]:
+                elif status in ["FT", "CANCELLED"]:
                     mensaje_fin = f"✅ *{partido['local']} vs {partido['visitante']}* ha finalizado ({status})."
                     bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje_fin, parse_mode=telegram.ParseMode.MARKDOWN)
                     print(f"[INFO] Partido {fixture_id} ha terminado ({status}).")
@@ -115,7 +123,7 @@ def monitorear_eventos():
 
                 estados_previos[fixture_id] = status
 
-            if status != "live":
+            if not (status and "INPLAY" in status):
                 continue
 
             eventos = fixture.get("events", [])
