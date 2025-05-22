@@ -19,6 +19,9 @@ PARTIDOS_DEL_DIA = []
 utc = pytz.utc
 madrid = pytz.timezone("Europe/Madrid")
 
+# Estados considerados como "en juego"
+ESTADOS_EN_JUEGO = {"INPLAY_1ST_HALF", "INPLAY_2ND_HALF", "ET", "PEN_LIVE", "HT"}
+
 # Sesión con reintentos
 session = requests.Session()
 retries = Retry(total=5, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504])
@@ -105,6 +108,7 @@ def monitorear_eventos():
     estados_previos = {}
     partidos_pendientes = PARTIDOS_DEL_DIA.copy()
     tiros_reportados = set()
+    tarjetas_tempranas_reportadas = set()
 
     print(f"[INFO] Monitoreo preparado para {len(partidos_pendientes)} partidos...")
 
@@ -129,23 +133,23 @@ def monitorear_eventos():
 
             if fixture_id not in estados_previos:
                 estados_previos[fixture_id] = status
-                if status == "inplay":
+                if status in ESTADOS_EN_JUEGO:
                     enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
-                elif status in ["ft", "cancelled"]:
+                elif status in ["FT", "CANCELLED"]:
                     mensaje = f"⚠️ *{partido['local']} vs {partido['visitante']}* no se jugará. Estado: {status}"
                     enviar_mensaje(mensaje)
                     partidos_pendientes.remove(partido)
                 continue
 
             if status != estado_anterior:
-                if status == "inplay":
+                if status in ESTADOS_EN_JUEGO:
                     enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
-                elif status in ["ft", "cancelled"]:
+                elif status in ["FT", "CANCELLED"]:
                     enviar_mensaje(f"✅ *{partido['local']} vs {partido['visitante']}* ha finalizado ({status}).")
                     partidos_pendientes.remove(partido)
                 estados_previos[fixture_id] = status
 
-            if status != "inplay":
+            if status not in ESTADOS_EN_JUEGO:
                 continue
 
             for evento in fixture.get("events", []):
@@ -176,6 +180,15 @@ def monitorear_eventos():
                 if tipo in ["hit-woodwork"]:
                     mensaje = f"🥅 *{tipo.upper()}* - {equipo}\n👤 {jugador}\n⏱️ Minuto {minuto}"
                     if enviar_mensaje(mensaje):
+                        ya_reportados.add(evento_id)
+                    continue
+
+                if tipo == "yellowcard" and minuto <= 9:
+                    clave = (fixture_id, equipo)
+                    if clave not in tarjetas_tempranas_reportadas:
+                        mensaje = f"🟨 *{equipo}* recibe tarjeta amarilla antes del minuto 10\n👤 {jugador}\n⏱️ Minuto {minuto}"
+                        if enviar_mensaje(mensaje):
+                            tarjetas_tempranas_reportadas.add(clave)
                         ya_reportados.add(evento_id)
                     continue
 
