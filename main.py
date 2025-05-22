@@ -113,7 +113,7 @@ def monitorear_eventos():
         partidos_activos = [p for p in partidos_pendientes if ahora >= p["hora"] - datetime.timedelta(minutes=5)]
 
         if not partidos_activos:
-            print("[INFO] Nada para monitorear. Reintento en 10 minutos...")
+            print("[INFO] Ningún partido ha empezado aún. Reintento en 10 minutos...")
             time.sleep(600)
             continue
 
@@ -129,23 +129,23 @@ def monitorear_eventos():
 
             if fixture_id not in estados_previos:
                 estados_previos[fixture_id] = status
-                if status == "INPLAY_1ST_HALF":
+                if status == "inplay":
                     enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
-                elif status in ["FT", "CANCELLED"]:
+                elif status in ["ft", "cancelled"]:
                     mensaje = f"⚠️ *{partido['local']} vs {partido['visitante']}* no se jugará. Estado: {status}"
                     enviar_mensaje(mensaje)
                     partidos_pendientes.remove(partido)
                 continue
 
             if status != estado_anterior:
-                if status == "INPLAY_1ST_HALF":
+                if status == "inplay":
                     enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
-                elif status in ["FT", "CANCELLED"]:
+                elif status in ["ft", "cancelled"]:
                     enviar_mensaje(f"✅ *{partido['local']} vs {partido['visitante']}* ha finalizado ({status}).")
                     partidos_pendientes.remove(partido)
                 estados_previos[fixture_id] = status
 
-            if not status or not status.startswith("INPLAY"):
+            if status != "inplay":
                 continue
 
             for evento in fixture.get("events", []):
@@ -169,12 +169,6 @@ def monitorear_eventos():
                         mensaje = f"❌ *GOL ANULADO* para *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
                     else:
                         mensaje = f"⚽ *GOL* de *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
-                    if enviar_mensaje(mensaje):
-                        ya_reportados.add(evento_id)
-                    continue
-
-                if tipo == "yellowcard":
-                    mensaje = f"🟨 *Tarjeta amarilla* para *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
                     if enviar_mensaje(mensaje):
                         ya_reportados.add(evento_id)
                     continue
