@@ -22,14 +22,14 @@ madrid = pytz.timezone("Europe/Madrid")
 # Estados considerados como "en juego"
 ESTADOS_EN_JUEGO = {"INPLAY_1ST_HALF", "INPLAY_2ND_HALF", "ET", "PEN_LIVE", "HT"}
 
-# SesiÃ³n con reintentos
+# Sesión con reintentos
 session = requests.Session()
 retries = Retry(total=5, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504])
 session.mount("https://", HTTPAdapter(max_retries=retries))
 
 def enviar_mensaje(mensaje):
     try:
-        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje, parse_mode=telegram.ParseMode.MARKDOWN)
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje, parse_mode=telegram.ParseMode.HTML)
         return True
     except Exception as e:
         print(f"[ERROR] No se pudo enviar mensaje: {e}")
@@ -54,9 +54,9 @@ def obtener_partidos():
 
     partidos = data["data"]
     if not partidos:
-        return "ðŸ“¬ *Hoy no hay partidos programados.*"
+        return "📬 <b>Hoy no hay partidos programados.</b>"
 
-    mensaje = f"ðŸ—•ï¸ *Partidos para hoy* ({hoy}):\n\n"
+    mensaje = f"📅 <b>Partidos para hoy</b> ({hoy}):\n\n"
     for partido in partidos:
         PARTICIPANTES = partido.get("participants", [])
         local = visitante = "Por definir"
@@ -74,12 +74,12 @@ def obtener_partidos():
             hora_partido = hora_utc.astimezone(madrid)
 
         liga = partido.get("league", {}).get("name", "Liga desconocida")
-        pais = partido.get("league", {}).get("country", {}).get("name", "PaÃ­s desconocido")
+        pais = partido.get("league", {}).get("country", {}).get("name", "País desconocido")
 
         mensaje += (
-            f"âš½ *{local}* vs *{visitante}*\n"
-            f"ðŸ† Liga: _{liga}_ ({pais})\n"
-            f"ðŸ•’ Hora: {hora_partido.strftime('%H:%M %Z') if hora_partido else 'No disponible'}\n\n"
+            f"⚽ <b>{local}</b> vs <b>{visitante}</b>\n"
+            f"🏆 Liga: <i>{liga}</i> ({pais})\n"
+            f"🕒 Hora: {hora_partido.strftime('%H:%M %Z') if hora_partido else 'No disponible'}\n\n"
         )
 
         if hora_partido:
@@ -100,7 +100,7 @@ def obtener_fixture(fixture_id):
         response = session.get(url, timeout=10)
         return response.json().get("data", {})
     except Exception as e:
-        print(f"[ERROR] FallÃ³ la consulta del fixture {fixture_id}: {e}")
+        print(f"[ERROR] Falló la consulta del fixture {fixture_id}: {e}")
         return {}
 
 def monitorear_eventos():
@@ -117,7 +117,7 @@ def monitorear_eventos():
         partidos_activos = [p for p in partidos_pendientes if ahora >= p["hora"] - datetime.timedelta(minutes=5)]
 
         if not partidos_activos:
-            print("[INFO] NingÃºn partido ha empezado aÃºn. Reintento en 10 minutos...")
+            print("[INFO] Ningún partido ha empezado aún. Reintento en 10 minutos...")
             time.sleep(600)
             continue
 
@@ -128,25 +128,24 @@ def monitorear_eventos():
             if not fixture:
                 continue
 
-            status = fixture.get("status", {}).get("short")
-            print(f"[DEBUG] Estado actual del partido {partido['local']} vs {partido['visitante']}: {status}")
+            status = fixture.get("status", {}).get("type")
             estado_anterior = estados_previos.get(fixture_id)
 
             if fixture_id not in estados_previos:
                 estados_previos[fixture_id] = status
                 if status in ESTADOS_EN_JUEGO:
-                    enviar_mensaje(f"ðŸ”´ *{partido['local']} vs {partido['visitante']}* ha comenzado.")
+                    enviar_mensaje(f"🔴 <b>{partido['local']} vs {partido['visitante']}</b> ha comenzado.")
                 elif status in ["FT", "CANCELLED"]:
-                    mensaje = f"âš ï¸ *{partido['local']} vs {partido['visitante']}* no se jugarÃ¡. Estado: {status}"
+                    mensaje = f"⚠️ <b>{partido['local']} vs {partido['visitante']}</b> no se jugará. Estado: {status}"
                     enviar_mensaje(mensaje)
                     partidos_pendientes.remove(partido)
                 continue
 
             if status != estado_anterior:
                 if status in ESTADOS_EN_JUEGO:
-                    enviar_mensaje(f"ðŸ”´ *{partido['local']} vs {partido['visitante']}* ha comenzado.")
+                    enviar_mensaje(f"🔴 <b>{partido['local']} vs {partido['visitante']}</b> ha comenzado.")
                 elif status in ["FT", "CANCELLED"]:
-                    enviar_mensaje(f"âœ… *{partido['local']} vs {partido['visitante']}* ha finalizado ({status}).")
+                    enviar_mensaje(f"✅ <b>{partido['local']} vs {partido['visitante']}</b> ha finalizado ({status}).")
                     partidos_pendientes.remove(partido)
                 estados_previos[fixture_id] = status
 
@@ -167,19 +166,19 @@ def monitorear_eventos():
 
                 if tipo == "goal":
                     if resultado == "under_review":
-                        mensaje = f"ðŸ§ Posible *GOL* para *{equipo}*\nðŸ‘¤ {jugador}\nâ±ï¸ Minuto {minuto} *(revisiÃ³n VAR)*"
+                        mensaje = f"🧐 Posible <b>GOL</b> para <b>{equipo}</b>\n👤 {jugador}\n⏱️ Minuto {minuto} (revisión VAR)"
                     elif resultado == "confirmed":
-                        mensaje = f"âœ… *GOL CONFIRMADO* de *{equipo}*\nðŸ‘¤ {jugador}\nâ±ï¸ Minuto {minuto}"
+                        mensaje = f"✅ <b>GOL CONFIRMADO</b> de <b>{equipo}</b>\n👤 {jugador}\n⏱️ Minuto {minuto}"
                     elif resultado == "cancelled":
-                        mensaje = f"âŒ *GOL ANULADO* para *{equipo}*\nðŸ‘¤ {jugador}\nâ±ï¸ Minuto {minuto}"
+                        mensaje = f"❌ <b>GOL ANULADO</b> para <b>{equipo}</b>\n👤 {jugador}\n⏱️ Minuto {minuto}"
                     else:
-                        mensaje = f"âš½ *GOL* de *{equipo}*\nðŸ‘¤ {jugador}\nâ±ï¸ Minuto {minuto}"
+                        mensaje = f"⚽ <b>GOL</b> de <b>{equipo}</b>\n👤 {jugador}\n⏱️ Minuto {minuto}"
                     if enviar_mensaje(mensaje):
                         ya_reportados.add(evento_id)
                     continue
 
                 if tipo in ["hit-woodwork"]:
-                    mensaje = f"ðŸ¥… *{tipo.upper()}* - {equipo}\nðŸ‘¤ {jugador}\nâ±ï¸ Minuto {minuto}"
+                    mensaje = f"🥅 <b>{tipo.upper()}</b> - {equipo}\n👤 {jugador}\n⏱️ Minuto {minuto}"
                     if enviar_mensaje(mensaje):
                         ya_reportados.add(evento_id)
                     continue
@@ -187,7 +186,7 @@ def monitorear_eventos():
                 if tipo == "yellowcard" and minuto <= 9:
                     clave = (fixture_id, equipo)
                     if clave not in tarjetas_tempranas_reportadas:
-                        mensaje = f"ðŸŸ¨ *{equipo}* recibe tarjeta amarilla antes del minuto 10\nðŸ‘¤ {jugador}\nâ±ï¸ Minuto {minuto}"
+                        mensaje = f"🟨 <b>{equipo}</b> recibe tarjeta amarilla antes del minuto 10\n👤 {jugador}\n⏱️ Minuto {minuto}"
                         if enviar_mensaje(mensaje):
                             tarjetas_tempranas_reportadas.add(clave)
                         ya_reportados.add(evento_id)
@@ -198,7 +197,7 @@ def monitorear_eventos():
                 stats_response = session.get(stats_url, timeout=10).json()
                 stats_data = stats_response.get("data", [])
             except Exception as e:
-                print(f"[ERROR] Fallo en estadÃ­sticas del fixture {fixture_id}: {e}")
+                print(f"[ERROR] Fallo en estadísticas del fixture {fixture_id}: {e}")
                 continue
 
             for stat in stats_data:
@@ -209,11 +208,11 @@ def monitorear_eventos():
                         cantidad = int(item.get("value", 0))
                         clave = (fixture_id, team_name)
                         if cantidad >= 4 and clave not in tiros_reportados and ahora <= partido["hora"] + datetime.timedelta(minutes=30):
-                            mensaje = f"ðŸ“Š *{team_name}* ha realizado 4+ tiros a puerta antes del minuto 30."
+                            mensaje = f"📊 <b>{team_name}</b> ha realizado 4+ tiros a puerta antes del minuto 30."
                             if enviar_mensaje(mensaje):
                                 tiros_reportados.add(clave)
 
-        print("[INFO] VerificaciÃ³n completada. Esperando 40 segundos...")
+        print("[INFO] Verificación completada. Esperando 40 segundos...")
         time.sleep(40)
 
 def enviar_partidos():
