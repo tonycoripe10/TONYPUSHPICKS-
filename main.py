@@ -12,9 +12,11 @@ CHAT_ID = os.getenv("Chatid")
 
 bot = telegram.Bot(token=TELEGRAM_TOKEN)
 
-# Zonas horarias
-utc = pytz.utc
-local_tz = pytz.timezone("America/Bogota")
+# Estados válidos para partidos en vivo
+ESTADOS_EN_VIVO = {
+    "INPLAY_1ST_HALF", "INPLAY_2ND_HALF", "LIVE",
+    "ET", "PEN_LIVE", "HT"
+}
 
 def enviar_mensaje(msg):
     try:
@@ -30,9 +32,9 @@ def obtener_partido_en_colombia():
     data = resp.json()
 
     for partido in data.get("data", []):
-        pais = partido.get("league", {}).get("country", {}).get("name", "")
+        pais = partido.get("league", {}).get("country", {}).get("name", "").lower()
         status = partido.get("status", {}).get("type", "")
-        if pais.lower() == "colombia" and status in ["INPLAY_1ST_HALF", "INPLAY_2ND_HALF"]:
+        if "colombia" in pais and status in ESTADOS_EN_VIVO:
             return partido["id"], partido["participants"]
     return None, None
 
