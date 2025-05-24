@@ -128,7 +128,7 @@ def monitorear_eventos():
             if not fixture:
                 continue
 
-            status = fixture.get("state", {}).get("type")
+            status = fixture.get("status", {}).get("state")  # <- CORREGIDO AQUÍ
             estado_anterior = estados_previos.get(fixture_id)
 
             if fixture_id not in estados_previos:
@@ -157,7 +157,7 @@ def monitorear_eventos():
                 if not evento_id or evento_id in ya_reportados:
                     continue
 
-                tipo = evento.get("type", "events").lower()
+                tipo = evento.get("type", "evento").lower()
                 minuto = evento.get("minute", 0)
                 jugador = evento.get("player", {}).get("name", "Jugador desconocido")
                 equipo = evento.get("team", {}).get("name", "Equipo")
