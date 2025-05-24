@@ -109,6 +109,7 @@ def monitorear_eventos():
     partidos_pendientes = PARTIDOS_DEL_DIA.copy()
     tiros_reportados = set()
     tarjetas_tempranas_reportadas = set()
+    tiros_individuales_reportados = set()
 
     print(f"[INFO] Monitoreo preparado para {len(partidos_pendientes)} partidos...")
 
@@ -190,6 +191,15 @@ def monitorear_eventos():
                         if enviar_mensaje(mensaje):
                             tarjetas_tempranas_reportadas.add(clave)
                         ya_reportados.add(evento_id)
+                    continue
+
+                # NUEVO: alertar todos los tipos de tiros
+                if tipo in ["shot_on_target", "shot_off_target", "blocked_shot", "shot_saved"]:
+                    clave = (fixture_id, evento_id)
+                    if clave not in tiros_individuales_reportados:
+                        mensaje = f"🎯 *{tipo.replace('_', ' ').title()}* de *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
+                        if enviar_mensaje(mensaje):
+                            tiros_individuales_reportados.add(clave)
                     continue
 
             stats_url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}/statistics?api_token={SPORTMONKS_API_KEY}"
