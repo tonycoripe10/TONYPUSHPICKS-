@@ -29,6 +29,7 @@ session.mount("https://", HTTPAdapter(max_retries=retries))
 
 def enviar_mensaje(mensaje):
     try:
+        print(f"[ENVÍO] Enviando mensaje Telegram:\n{mensaje}")
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje, parse_mode=telegram.ParseMode.MARKDOWN)
         return True
     except Exception as e:
@@ -109,12 +110,12 @@ def monitorear_eventos():
     partidos_pendientes = PARTIDOS_DEL_DIA.copy()
     tiros_reportados = set()
     tarjetas_tempranas_reportadas = set()
-    tiros_individuales_reportados = set()
 
     print(f"[INFO] Monitoreo preparado para {len(partidos_pendientes)} partidos...")
 
     while partidos_pendientes:
         ahora = datetime.datetime.now(madrid)
+        print(f"[TRACE] Verificando eventos a las {ahora.strftime('%H:%M:%S')}")
         partidos_activos = [p for p in partidos_pendientes if ahora >= p["hora"] - datetime.timedelta(minutes=5)]
 
         if not partidos_activos:
@@ -133,6 +134,7 @@ def monitorear_eventos():
             estado_anterior = estados_previos.get(fixture_id)
 
             if fixture_id not in estados_previos:
+                print(f"[TRACE] Primer estado del partido {fixture_id}: {status}")
                 if status in ESTADOS_EN_JUEGO:
                     enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
                 elif status in ["FT", "CANCELLED"]:
@@ -143,6 +145,7 @@ def monitorear_eventos():
                 continue
 
             if status != estado_anterior:
+                print(f"[TRACE] Cambio de estado en partido {fixture_id}: {estado_anterior} -> {status}")
                 if status in ESTADOS_EN_JUEGO:
                     enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
                 elif status in ["FT", "CANCELLED"]:
@@ -164,6 +167,8 @@ def monitorear_eventos():
                 equipo = evento.get("team", {}).get("name", "Equipo")
                 resultado = evento.get("result", "")
                 detalles = evento.get("details", "")
+
+                print(f"[TRACE] Evento detectado: {tipo} ({evento_id}) - {equipo} {minuto}'")
 
                 if tipo == "goal":
                     if resultado == "under_review":
@@ -193,19 +198,11 @@ def monitorear_eventos():
                         ya_reportados.add(evento_id)
                     continue
 
-                # NUEVO: alertar todos los tipos de tiros
-                if tipo in ["shot_on_target", "shot_off_target", "blocked_shot", "shot_saved"]:
-                    clave = (fixture_id, evento_id)
-                    if clave not in tiros_individuales_reportados:
-                        mensaje = f"🎯 *{tipo.replace('_', ' ').title()}* de *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
-                        if enviar_mensaje(mensaje):
-                            tiros_individuales_reportados.add(clave)
-                    continue
-
             stats_url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}/statistics?api_token={SPORTMONKS_API_KEY}"
             try:
                 stats_response = session.get(stats_url, timeout=10).json()
                 stats_data = stats_response.get("data", [])
+                print(f"[TRACE] Estadísticas obtenidas para fixture {fixture_id}")
             except Exception as e:
                 print(f"[ERROR] Fallo en estadísticas del fixture {fixture_id}: {e}")
                 continue
@@ -218,11 +215,12 @@ def monitorear_eventos():
                         cantidad = int(item.get("value", 0))
                         clave = (fixture_id, team_name)
                         if cantidad >= 4 and clave not in tiros_reportados and ahora <= partido["hora"] + datetime.timedelta(minutes=30):
+                            print(f"[TRACE] {team_name} ha alcanzado {cantidad} tiros a puerta antes del minuto 30.")
                             mensaje = f"📊 *{team_name}* ha realizado 4+ tiros a puerta antes del minuto 30."
                             if enviar_mensaje(mensaje):
                                 tiros_reportados.add(clave)
 
-        print("[INFO] Verificación completada. Esperando 40 segundos...")
+        print("[INFO] Verificación completada. Esperando 40 segundos...\n")
         time.sleep(40)
 
 def enviar_partidos():
