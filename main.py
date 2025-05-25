@@ -96,7 +96,7 @@ def obtener_partidos():
     return mensaje.strip()
 
 def obtener_fixture(fixture_id):
-    url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}?api_token={SPORTMONKS_API_KEY}&include=events"
+    url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}?api_token={SPORTMONKS_API_KEY}&include=state;events"
     try:
         response = session.get(url, timeout=10)
         return response.json().get("data", {})
@@ -135,7 +135,7 @@ def monitorear_eventos():
                 print(f"[WARN] Fixture vacío o fallido para partido {fixture_id}")
                 continue
 
-            status = fixture.get("status", {}).get("state")
+            status = fixture.get("state", {}).get("data", {}).get("state")
             print(f"[DEBUG] Estado actual: {status}")
             estado_anterior = estados_previos.get(fixture_id)
 
