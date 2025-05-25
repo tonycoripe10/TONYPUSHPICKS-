@@ -74,18 +74,7 @@ def enviar_resumen_diario(partidos):
         mensaje += f"• {hora_str} - {local} vs {visitante}\n"
     enviar_mensaje(mensaje)
 
-# Lista global de partidos del día
-PARTIDOS_DEL_DIA = [
-    {
-        "id": partido["id"],
-        "hora": formatear_hora(partido["starting_at"]["date_time"]),
-        "local": partido["localTeam"]["data"]["name"],
-        "visitante": partido["visitorTeam"]["data"]["name"]
-    }
-    for partido in obtener_partidos_hoy()
-]
-
-def monitorear_eventos():
+def monitorear_eventos(PARTIDOS_DEL_DIA):
     ya_reportados = set()
     estados_previos = {}
     partidos_pendientes = PARTIDOS_DEL_DIA.copy()
@@ -141,7 +130,6 @@ def monitorear_eventos():
                 estados_previos[fixture_id] = status
 
             if status not in ESTADOS_EN_JUEGO:
-                # NUEVO BLOQUE: Eliminación manual de partidos finalizados
                 if status in ["FT", "CANCELLED", "AWARDED", "POSTPONED"]:
                     if partido in partidos_pendientes:
                         print(f"[INFO] Partido {fixture_id} finalizado o cancelado. Eliminando de seguimiento.")
@@ -215,10 +203,21 @@ def monitorear_eventos():
         print("[INFO] Verificación completada. Esperando 40 segundos...\n")
         time.sleep(40)
 
-# Ejecutar todo
+# MAIN
 if __name__ == "__main__":
-    if PARTIDOS_DEL_DIA:
-        enviar_resumen_diario(obtener_partidos_hoy())
-        monitorear_eventos()
+    partidos_hoy = obtener_partidos_hoy()
+    if partidos_hoy:
+        enviar_resumen_diario(partidos_hoy)
+
+        PARTIDOS_DEL_DIA = [
+            {
+                "id": partido["id"],
+                "hora": formatear_hora(partido["starting_at"]["date_time"]),
+                "local": partido["localTeam"]["data"]["name"],
+                "visitante": partido["visitorTeam"]["data"]["name"]
+            }
+            for partido in partidos_hoy
+        ]
+        monitorear_eventos(PARTIDOS_DEL_DIA)
     else:
         print("[INFO] No hay partidos programados para hoy.")
