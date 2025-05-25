@@ -20,7 +20,7 @@ utc = pytz.utc
 madrid = pytz.timezone("Europe/Madrid")
 
 # Estados considerados como "en juego"
-ESTADOS_EN_JUEGO = {"INPLAY_1ST_HALF", "INPLAY_2ND_HALF", "ET", "PEN_LIVE", "HT", "LIVE"}
+ESTADOS_EN_JUEGO = {"INPLAY_1ST_HALF", "INPLAY_2ND_HALF", "ET", "PEN_LIVE", "HT"}
 
 # Sesión con reintentos
 session = requests.Session()
@@ -130,7 +130,8 @@ def monitorear_eventos():
             if not fixture:
                 continue
 
-            status = fixture.get("state", {}).get("data", {}).get("state")  # CAMBIADO
+            # CORRECTO: Obtener estado real del partido
+            status = fixture.get("state", {}).get("data", {}).get("state")
             estado_anterior = estados_previos.get(fixture_id)
 
             if fixture_id not in estados_previos:
@@ -197,28 +198,6 @@ def monitorear_eventos():
                             tarjetas_tempranas_reportadas.add(clave)
                         ya_reportados.add(evento_id)
                     continue
-
-            stats_url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}/statistics?api_token={SPORTMONKS_API_KEY}"
-            try:
-                stats_response = session.get(stats_url, timeout=10).json()
-                stats_data = stats_response.get("data", [])
-                print(f"[TRACE] Estadísticas obtenidas para fixture {fixture_id}")
-            except Exception as e:
-                print(f"[ERROR] Fallo en estadísticas del fixture {fixture_id}: {e}")
-                continue
-
-            for stat in stats_data:
-                team_name = stat.get("team", {}).get("name", "Equipo")
-                stats_list = stat.get("statistics", [])
-                for item in stats_list:
-                    if item.get("type") == "shots_on_target":
-                        cantidad = int(item.get("value", 0))
-                        clave = (fixture_id, team_name)
-                        if cantidad >= 4 and clave not in tiros_reportados and ahora <= partido["hora"] + datetime.timedelta(minutes=30):
-                            print(f"[TRACE] {team_name} ha alcanzado {cantidad} tiros a puerta antes del minuto 30.")
-                            mensaje = f"📊 *{team_name}* ha realizado 4+ tiros a puerta antes del minuto 30."
-                            if enviar_mensaje(mensaje):
-                                tiros_reportados.add(clave)
 
         print("[INFO] Verificación completada. Esperando 40 segundos...\n")
         time.sleep(40)
