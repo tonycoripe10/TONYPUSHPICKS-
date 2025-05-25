@@ -116,7 +116,10 @@ def monitorear_eventos():
     while partidos_pendientes:
         ahora = datetime.datetime.now(madrid)
         print(f"[TRACE] Verificando eventos a las {ahora.strftime('%H:%M:%S')}")
+        print(f"[DEBUG] Partidos pendientes: {[p['id'] for p in partidos_pendientes]}")
+        
         partidos_activos = [p for p in partidos_pendientes if ahora >= p["hora"] - datetime.timedelta(minutes=5)]
+        print(f"[DEBUG] Partidos activos: {[p['id'] for p in partidos_activos]}")
 
         if not partidos_activos:
             print("[INFO] Ningún partido ha empezado aún. Reintento en 10 minutos...")
@@ -124,13 +127,16 @@ def monitorear_eventos():
             continue
 
         for partido in partidos_activos:
+            print(f"[DEBUG] Procesando partido ID {partido['id']} ({partido['local']} vs {partido['visitante']})")
             fixture_id = partido["id"]
             fixture = obtener_fixture(fixture_id)
 
             if not fixture:
+                print(f"[WARN] Fixture vacío o fallido para partido {fixture_id}")
                 continue
 
             status = fixture.get("status", {}).get("state")
+            print(f"[DEBUG] Estado actual: {status}")
             estado_anterior = estados_previos.get(fixture_id)
 
             if fixture_id not in estados_previos:
