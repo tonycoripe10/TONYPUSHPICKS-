@@ -94,7 +94,8 @@ def obtener_partidos():
     return mensaje.strip()
 
 def obtener_fixture(fixture_id):
-    url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}?api_token={SPORTMONKS_API_KEY}&include=events;status"
+    url = https://api.sportmonks.com/v3/football/fixtures/date/{fecha}?api_token=TU_API_TOKEN&include=participants;league.country
+
     try:
         response = session.get(url, timeout=10)
         fixture = response.json().get("data", {})
