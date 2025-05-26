@@ -121,9 +121,9 @@ def monitorear_eventos():
         partidos_activos = [p for p in partidos_pendientes if ahora >= p["hora"] - datetime.timedelta(minutes=5)]
 
         if not partidos_activos:
-    print("[INFO] Ningún partido ha empezado aún. Reintento en 10 minutos...")
-    time.sleep(600)
-    ahora += datetime.timedelta(minutes=10)  # Avanza el reloj simulado
+            print("[INFO] Ningún partido ha empezado aún. Reintento en 10 minutos...")
+            time.sleep(600)
+            ahora += datetime.timedelta(minutes=10)  # Avanza el reloj simulado
             continue
             
 
