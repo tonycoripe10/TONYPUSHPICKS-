@@ -59,8 +59,8 @@ def obtener_partidos():
 
     mensaje = f"📆 *Partidos del día para hoy* ({hoy}):\n\n"
     for partido in partidos:
-    liga = partido.get("league", {}).get("name", "")
-    pais = partido.get("league", {}).get("country", {}).get("name", "")
+        liga = partido.get("league", {}).get("name", "")
+        pais = partido.get("league", {}).get("country", {}).get("name", "")
 
     # Ignorar partidos finalizados o no relevantes
     estado = partido.get("status", {}).get("state", "")
