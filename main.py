@@ -25,7 +25,7 @@ retries = Retry(total=5, backoff_factor=2, status_forcelist=[429, 500, 502, 503,
 session.mount("https://", HTTPAdapter(max_retries=retries))
 
 def enviar_mensaje(mensaje):
-    try:
+    try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=mensaje, parse_mode=telegram.ParseMode.MARKDOWN)
         return True
     except Exception as e:
