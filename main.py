@@ -38,7 +38,7 @@ def enviar_mensaje(mensaje):
 
 def obtener_partidos():
     global PARTIDOS_DEL_DIA
-    hoy = "2025-05-24"
+    hoy = "2025-05-16"
     print(f"[INFO] Solicitando partidos del {hoy}...")
 
     url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country"
@@ -57,11 +57,11 @@ def obtener_partidos():
     if not partidos:
         return "📬 *Hoy no hay partidos programados.*"
 
-    mensaje = f"🇪🇸 *Partidos de La Liga para hoy* ({hoy}):\n\n"
+    mensaje = f"🇬🇧 *Partidos de La Liga para hoy* ({hoy}):\n\n"
     for partido in partidos:
         liga = partido.get("league", {}).get("name", "")
         pais = partido.get("league", {}).get("country", {}).get("name", "")
-        if liga != "La Liga" or pais != "Spain":
+        if liga != "Premier League" or pais != "England":
             continue  # Solo queremos La Liga española
 
         PARTICIPANTES = partido.get("participants", [])
@@ -115,7 +115,7 @@ def monitorear_eventos():
     tarjetas_tempranas_reportadas = set()
 
     print(f"[INFO] Monitoreo preparado para {len(partidos_pendientes)} partidos...")
-    ahora = datetime.datetime(2025, 5, 24, 16, 20, tzinfo=pytz.utc)
+    ahora = datetime.datetime(2025, 5, 16, 19, 00, tzinfo=pytz.utc)
 
     while partidos_pendientes:
         print(f"[TRACE] Verificando eventos a las {ahora.strftime('%H:%M:%S')}")
