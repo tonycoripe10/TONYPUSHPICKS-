@@ -61,8 +61,6 @@ def obtener_partidos():
     for partido in partidos:
         liga = partido.get("league", {}).get("name", "")
         pais = partido.get("league", {}).get("country", {}).get("name", "")
-
-    # Ignorar partidos finalizados o no relevantes
         estado = partido.get("status", {}).get("state", "")
         if estado in ["FT", "CANCELLED", "POSTPONED", "AWARDED"]:
             continue
@@ -88,26 +86,25 @@ def obtener_partidos():
         )
 
         if hora_partido:
-    # Ignorar partidos muy antiguos (ej: empezaron hace más de 6 horas)
-    zona_madrid = pytz.timezone("Europe/Madrid")
-    hora_en_madrid = datetime.datetime.now(zona_madrid)
-    if hora_partido < hora_en_madrid - datetime.timedelta(hours=6):
-        print(f"[FILTRADO] Partido descartado por ser antiguo: {local} vs {visitante} a las {hora_partido}")
-        continue
+            zona_madrid = pytz.timezone("Europe/Madrid")
+            hora_en_madrid = datetime.datetime.now(zona_madrid)
+            if hora_partido < hora_en_madrid - datetime.timedelta(hours=6):
+                print(f"[FILTRADO] Partido descartado por ser antiguo: {local} vs {visitante} a las {hora_partido}")
+                continue
 
-    PARTIDOS_DEL_DIA.append({
-        "id": partido["id"],
-        "hora": hora_partido,
-        "local": local,
-        "visitante": visitante
-    })
+            PARTIDOS_DEL_DIA.append({
+                "id": partido["id"],
+                "hora": hora_partido,
+                "local": local,
+                "visitante": visitante
+            })
 
         print(f"[INFO] Partido registrado: {local} vs {visitante} - ID {partido['id']}")
 
     return mensaje.strip()
 
 def obtener_fixture(fixture_id):
-    url = f"https://api.sportmonks.com/v3/football/fixtures/date/{fecha}?api_token=TU_API_TOKEN&include=participants;league.country"
+    url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}?api_token={SPORTMONKS_API_KEY}&include=events;statistics;participants;league"
 
     try:
         response = session.get(url, timeout=10)
