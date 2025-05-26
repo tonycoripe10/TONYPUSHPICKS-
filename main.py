@@ -57,8 +57,13 @@ def obtener_partidos():
     if not partidos:
         return "📬 *Hoy no hay partidos programados.*"
 
-    mensaje = f"🇕️ *Partidos para hoy* ({hoy}):\n\n"
+    mensaje = f"🇪🇸 *Partidos de La Liga para hoy* ({hoy}):\n\n"
     for partido in partidos:
+        liga = partido.get("league", {}).get("name", "")
+        pais = partido.get("league", {}).get("country", {}).get("name", "")
+        if liga != "La Liga" or pais != "Spain":
+            continue  # Solo queremos La Liga española
+
         PARTICIPANTES = partido.get("participants", [])
         local = visitante = "Por definir"
         for p in PARTICIPANTES:
@@ -74,12 +79,8 @@ def obtener_partidos():
             hora_utc = utc.localize(hora_utc)
             hora_partido = hora_utc.astimezone(madrid)
 
-        liga = partido.get("league", {}).get("name", "Liga desconocida")
-        pais = partido.get("league", {}).get("country", {}).get("name", "País desconocido")
-
         mensaje += (
             f"⚽ *{local}* vs *{visitante}*\n"
-            f"🏆 Liga: _{liga}_ ({pais})\n"
             f"🕒 Hora: {hora_partido.strftime('%H:%M %Z') if hora_partido else 'No disponible'}\n\n"
         )
 
