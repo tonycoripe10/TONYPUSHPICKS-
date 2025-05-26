@@ -1,4 +1,11 @@
-import os import requests import datetime import time import telegram import pytz from requests.adapters import HTTPAdapter from urllib3.util.retry import Retry
+import os
+import requests
+import datetime
+import time
+import telegram
+import pytz
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 Variables de entorno
 
