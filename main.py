@@ -41,7 +41,7 @@ def obtener_partidos():
     hoy = "2025-05-16"
     print(f"[INFO] Solicitando partidos del {hoy}...")
 
-    url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country"
+    url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country&filters=league_id:8"
     try:
         response = session.get(url, timeout=10)
         data = response.json()
@@ -61,9 +61,6 @@ def obtener_partidos():
     for partido in partidos:
         liga = partido.get("league", {}).get("name", "")
         pais = partido.get("league", {}).get("country", {}).get("name", "")
-        if liga != "Premier League" or pais != "England":
-            continue  # Solo queremos La Liga española
-
         PARTICIPANTES = partido.get("participants", [])
         local = visitante = "Por definir"
         for p in PARTICIPANTES:
