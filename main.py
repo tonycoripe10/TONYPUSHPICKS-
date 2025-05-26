@@ -88,12 +88,18 @@ def obtener_partidos():
         )
 
         if hora_partido:
+            # Ignorar partidos muy antiguos (ej: empezaron hace más de 6 horas)
+            if hora_partido < datetime.datetime.now(madrid) - datetime.timedelta(hours=6):
+                print(f"[FILTRADO] Partido descartado por ser antiguo: {local} vs {visitante} a las {hora_partido}")
+                continue
+
             PARTIDOS_DEL_DIA.append({
                 "id": partido["id"],
                 "hora": hora_partido,
                 "local": local,
                 "visitante": visitante
             })
+
 
         print(f"[INFO] Partido registrado: {local} vs {visitante} - ID {partido['id']}")
 
