@@ -99,8 +99,9 @@ def obtener_fixture(fixture_id):
     url = f"https://api.sportmonks.com/v3/football/fixtures/{fixture_id}?api_token={SPORTMONKS_API_KEY}&include=events;status"
     try:
         response = session.get(url, timeout=10)
-        return response.json().get("data", {})
-            print(f"[DEBUG] Fixture completo:\n{fixture}")
+        fixture = response.json().get("data", {})
+        print(f"[DEBUG] Fixture completo:\n{fixture}")
+        return fixture
     except Exception as e:
         print(f"[ERROR] Falló la consulta del fixture {fixture_id}: {e}")
         return {}
