@@ -130,6 +130,7 @@ def monitorear_eventos():
         for partido in partidos_activos:
             fixture_id = partido["id"]
             fixture = obtener_fixture(fixture_id)
+            print(f"[DEBUG] JSON crudo del fixture {fixture_id}:\n{fixture}")
 
             if not fixture:
                 continue
