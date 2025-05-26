@@ -88,10 +88,12 @@ def obtener_partidos():
         )
 
         if hora_partido:
-            # Ignorar partidos muy antiguos (ej: empezaron hace más de 6 horas)
-            if hora_partido < datetime.datetime.now(madrid) - datetime.timedelta(hours=6):
-                print(f"[FILTRADO] Partido descartado por ser antiguo: {local} vs {visitante} a las {hora_partido}")
+    zona_madrid = pytz.timezone("Europe/Madrid")
+    ahora_madrid = datetime.datetime.now(zona_madrid)
+            if hora_partido < ahora_madrid - datetime.timedelta(hours=6):
+        print(f"[FILTRADO] Partido descartado por ser antiguo: {local} vs {visitante} a las {hora_partido}")
                 continue
+
 
             PARTIDOS_DEL_DIA.append({
                 "id": partido["id"],
