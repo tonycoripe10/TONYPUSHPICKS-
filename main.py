@@ -88,7 +88,7 @@ def obtener_fixture(fixture_id): url = f"https://api.sportmonks.com/v3/football/
 def monitorear_eventos(): ya_reportados = set() estados_previos = {} partidos_pendientes = PARTIDOS_DEL_DIA.copy() tiros_reportados = set() tarjetas_tempranas_reportadas = set()
 
 print(f"[INFO] Monitoreo preparado para {len(partidos_pendientes)} partidos...")
-ahora = datetime.datetime(2025, 5, 24, 13, 30, tzinfo=pytz.utc)
+ahora = datetime.datetime(2025, 5, 24, 16, 10, tzinfo=pytz.utc)
 
 while partidos_pendientes:
     print(f"[TRACE] Verificando eventos a las {ahora.strftime('%H:%M:%S')}")
