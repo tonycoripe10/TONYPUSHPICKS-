@@ -38,10 +38,10 @@ def enviar_mensaje(mensaje):
 
 def obtener_partidos():
     global PARTIDOS_DEL_DIA
-    hoy = datetime.datetime.now(madrid).strftime("%Y-%m-%d")
+    hoy_utc = datetime.datetime.utcnow().strftime("%Y-%m-%d")
     print(f"[INFO] Solicitando partidos del {hoy}...")
 
-    url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country"
+    url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy_utc}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country"
     try:
         response = session.get(url, timeout=10)
         data = response.json()
