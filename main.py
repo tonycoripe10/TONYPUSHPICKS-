@@ -42,7 +42,6 @@ def obtener_partidos():
     print(f"[INFO] Solicitando partidos del {hoy}...")
 
     url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country"
-    ...
     try:
         response = session.get(url, timeout=10)
         data = response.json()
@@ -72,8 +71,7 @@ def obtener_partidos():
         hora_partido = None
         if hora_iso:
             hora_utc = datetime.datetime.fromisoformat(hora_iso.replace("Z", "+00:00"))
-            hora_utc = utc.localize(hora_utc)
-            hora_partido = hora_utc.astimezone(madrid)
+            hora_partido = hora_utc  # se mantiene en UTC
 
         liga = partido.get("league", {}).get("name", "Liga desconocida")
         pais = partido.get("league", {}).get("country", {}).get("name", "País desconocido")
@@ -81,7 +79,7 @@ def obtener_partidos():
         mensaje += (
             f"⚽ *{local}* vs *{visitante}*\n"
             f"🏆 Liga: _{liga}_ ({pais})\n"
-            f"🕒 Hora: {hora_partido.strftime('%H:%M %Z') if hora_partido else 'No disponible'}\n\n"
+            f"🕒 Hora: {hora_partido.strftime('%H:%M UTC') if hora_partido else 'No disponible'}\n\n"
         )
 
         if hora_partido:
