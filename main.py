@@ -38,7 +38,7 @@ def enviar_mensaje(mensaje):
 
 def obtener_partidos():
     global PARTIDOS_DEL_DIA
-    hoy = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+    hoy = "2025-05-24"
     print(f"[INFO] Solicitando partidos del {hoy}...")
 
     url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country"
@@ -112,16 +112,20 @@ def monitorear_eventos():
     tarjetas_tempranas_reportadas = set()
 
     print(f"[INFO] Monitoreo preparado para {len(partidos_pendientes)} partidos...")
-
+   # Simulación: iniciar el 24 de mayo de 2025 a las 13:30 UTC
+    ahora = datetime.datetime(2025, 5, 24, 13, 30, tzinfo=pytz.utc)
     while partidos_pendientes:
-        ahora = datetime.datetime.now(madrid)
         print(f"[TRACE] Verificando eventos a las {ahora.strftime('%H:%M:%S')}")
+        for p in partidos_pendientes:
+        print(f"[HORA] Partido {p['id']} - Programado a {p['hora']} | Ahora: {ahora} | Diferencia: {(ahora - p['hora']).total_seconds()}s")
         partidos_activos = [p for p in partidos_pendientes if ahora >= p["hora"] - datetime.timedelta(minutes=5)]
 
         if not partidos_activos:
-            print("[INFO] Ningún partido ha empezado aún. Reintento en 10 minutos...")
-            time.sleep(600)
+    print("[INFO] Ningún partido ha empezado aún. Reintento en 10 minutos...")
+    time.sleep(600)
+    ahora += datetime.timedelta(minutes=10)  # Avanza el reloj simulado
             continue
+            
 
         for partido in partidos_activos:
             fixture_id = partido["id"]
@@ -132,7 +136,7 @@ def monitorear_eventos():
 
             status = fixture.get("status", {}).get("state")
             estado_anterior = estados_previos.get(fixture_id)
-
+                print(f"[ESTADO] Partido {fixture_id} - Estado actual: {status} | Estado anterior: {estados_previos.get(fixture_id)}")
             if fixture_id not in estados_previos:
                 print(f"[TRACE] Primer estado del partido {fixture_id}: {status}")
                 if status in ESTADOS_EN_JUEGO:
@@ -211,6 +215,9 @@ def monitorear_eventos():
                 team_name = stat.get("team", {}).get("name", "Equipo")
                 stats_list = stat.get("statistics", [])
                 for item in stats_list:
+                    tipo_tiro = item.get("type")
+                    valor_tiro = item.get("value")
+                            print(f"[TIRO] Tipo: {tipo_tiro} | Valor: {valor_tiro} | Equipo: {team_name}")
                     if item.get("type") == "shots_on_target":
                         cantidad = int(item.get("value", 0))
                         clave = (fixture_id, team_name)
@@ -222,6 +229,7 @@ def monitorear_eventos():
 
         print("[INFO] Verificación completada. Esperando 40 segundos...\n")
         time.sleep(40)
+        ahora += datetime.timedelta(seconds=40)  # <--- Añadir esta línea aquí
 
 def enviar_partidos():
     mensaje = obtener_partidos()
