@@ -63,9 +63,9 @@ def obtener_partidos():
         pais = partido.get("league", {}).get("country", {}).get("name", "")
 
     # Ignorar partidos finalizados o no relevantes
-    estado = partido.get("status", {}).get("state", "")
-    if estado in ["FT", "CANCELLED", "POSTPONED", "AWARDED"]:
-        continue
+        estado = partido.get("status", {}).get("state", "")
+        if estado in ["FT", "CANCELLED", "POSTPONED", "AWARDED"]:
+            continue
 
         PARTICIPANTES = partido.get("participants", [])
         local = visitante = "Por definir"
