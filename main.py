@@ -41,7 +41,7 @@ def obtener_partidos():
     hoy = datetime.datetime.utcnow().strftime("%Y-%m-%d")
     print(f"[INFO] Solicitando partidos del {hoy}...")
 
-    url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country&filters=league_id:8"
+    url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country"
     try:
         response = session.get(url, timeout=10)
         data = response.json()
