@@ -38,27 +38,45 @@ def enviar_mensaje(mensaje):
 
 def obtener_partidos():
     global PARTIDOS_DEL_DIA
-    hoy = datetime.datetime.utcnow().strftime("%Y-%m-%d")
-    print(f"[INFO] Solicitando partidos del {hoy}...")
+    ahora_madrid = datetime.datetime.now(madrid)
+    hoy_es = ahora_madrid.date()
+    print(f"[INFO] Fecha en Madrid: {hoy_es}")
 
-    url = f"https://api.sportmonks.com/v3/football/fixtures/date/{hoy}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country"
-    try:
-        response = session.get(url, timeout=10)
-        data = response.json()
-    except Exception as e:
-        print(f"[ERROR] No se pudo obtener partidos: {e}")
-        return "[ERROR] No se pudieron obtener los partidos."
+    fechas_consulta = [
+        (ahora_madrid.astimezone(pytz.utc)).strftime("%Y-%m-%d"),
+        (ahora_madrid + datetime.timedelta(days=1)).astimezone(pytz.utc).strftime("%Y-%m-%d")
+    ]
 
-    if "data" not in data:
-        print("[ERROR] Respuesta sin datos.")
-        return "[ERROR] No se encontraron partidos."
+    partidos_totales = []
+    for fecha_utc in fechas_consulta:
+        print(f"[INFO] Solicitando partidos del {fecha_utc} (UTC)...")
+        url = f"https://api.sportmonks.com/v3/football/fixtures/date/{fecha_utc}?api_token={SPORTMONKS_API_KEY}&include=participants;league.country"
+        try:
+            response = session.get(url, timeout=10)
+            data = response.json()
+            partidos_totales.extend(data.get("data", []))
+        except Exception as e:
+            print(f"[ERROR] No se pudo obtener partidos del {fecha_utc}: {e}")
 
-    partidos = data["data"]
-    if not partidos:
+    if not partidos_totales:
         return "📬 *Hoy no hay partidos programados.*"
 
-    mensaje = f"🗕️ *Partidos para hoy* ({hoy}):\n\n"
-    for partido in partidos:
+    mensaje = f"📆 *Partidos del día para hoy* ({hoy_es}):\n\n"
+
+    for partido in partidos_totales:
+        estado = partido.get("status", {}).get("state", "")
+        if estado in ["FT", "CANCELLED", "POSTPONED", "AWARDED"]:
+            continue
+
+        hora_iso = partido.get("starting_at")
+        if not hora_iso:
+            continue
+
+        hora_utc = datetime.datetime.fromisoformat(hora_iso.replace("Z", "+00:00")).astimezone(utc)
+        hora_local = hora_utc.astimezone(madrid)
+        if hora_local.date() != hoy_es:
+            continue
+
         PARTICIPANTES = partido.get("participants", [])
         local = visitante = "Por definir"
         for p in PARTICIPANTES:
@@ -67,31 +85,19 @@ def obtener_partidos():
             elif p.get("meta", {}).get("location") == "away":
                 visitante = p.get("name", "Desconocido")
 
-        hora_iso = partido.get("starting_at")
-        hora_partido = None
-        if hora_iso:
-            hora_utc = datetime.datetime.fromisoformat(hora_iso.replace("Z", "+00:00"))
-            hora_utc = utc.localize(hora_utc)
-            hora_partido = hora_utc.astimezone(madrid)
-
-        liga = partido.get("league", {}).get("name", "Liga desconocida")
-        pais = partido.get("league", {}).get("country", {}).get("name", "País desconocido")
-
         mensaje += (
             f"⚽ *{local}* vs *{visitante}*\n"
-            f"🏆 Liga: _{liga}_ ({pais})\n"
-            f"🕒 Hora: {hora_partido.strftime('%H:%M %Z') if hora_partido else 'No disponible'}\n\n"
+            f"🕒 Hora: {hora_local.strftime('%H:%M %Z')}\n\n"
         )
 
-        if hora_partido:
-            PARTIDOS_DEL_DIA.append({
-                "id": partido["id"],
-                "hora": hora_partido,
-                "local": local,
-                "visitante": visitante
-            })
+        PARTIDOS_DEL_DIA.append({
+            "id": partido["id"],
+            "hora": hora_local,
+            "local": local,
+            "visitante": visitante
+        })
 
-        print(f"[INFO] Partido registrado: {local} vs {visitante} - ID {partido['id']}")
+        print(f"[INFO] Partido registrado: {local} vs {visitante} - {hora_local}")
 
     return mensaje.strip()
 
