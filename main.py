@@ -122,8 +122,10 @@ def monitorear_eventos():
     while partidos_pendientes:
         ahora = datetime.datetime.now(madrid)
         print(f"[TRACE] Verificando eventos a las {ahora.strftime('%H:%M:%S')}")
-        partidos_activos = [p for p in partidos_pendientes if ahora >= p["hora"] - datetime.timedelta(minutes=5)]
-
+        partidos_activos = [
+        p for p in partidos_pendientes
+        if p["hora"] - datetime.timedelta(minutes=5) <= ahora <= p["hora"] + datetime.timedelta(hours=2)
+        ]
         if not partidos_activos:
             print("[INFO] Ningún partido ha empezado aún. Reintento en 10 minutos...")
             time.sleep(600)
