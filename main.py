@@ -165,6 +165,7 @@ def monitorear_eventos():
                 continue
 
             for evento in fixture.get("events", []):
+                print(f"[TRACE] Eventos encontrados: {len(fixture.get('events', []))}")
                 evento_id = evento.get("id")
                 if not evento_id or evento_id in ya_reportados:
                     continue
