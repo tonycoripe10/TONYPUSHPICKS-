@@ -123,7 +123,9 @@ def monitorear_eventos():
         ahora = datetime.datetime.now(madrid)
         print(f"[TRACE] Verificando eventos a las {ahora.strftime('%H:%M:%S')}")
         partidos_activos = [
-        p for p in partidos_pendientes
+        p for p in partidos_pendientes:
+    print(f"[HORA] Partido {p['id']} - Programado a {p['hora']} | Ahora: {ahora} | Diferencia: {(ahora - p['hora']).total_seconds()}s")
+            
         if p["hora"] - datetime.timedelta(minutes=5) <= ahora <= p["hora"] + datetime.timedelta(hours=2)
         ]
         if not partidos_activos:
