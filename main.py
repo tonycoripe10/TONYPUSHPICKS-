@@ -127,7 +127,7 @@ def monitorear_eventos():
         print(f"[HORA] Partido {p['id']} - Programado a {p['hora']} | Ahora: {ahora}")
         if p["hora"] - datetime.timedelta(minutes=5) <= ahora:
             partidos_activos.append(p)
-            print(f"[TRACE] Partidos activos detectados: {[f'{p['local']} vs {p['visitante']}' for p in partidos_activos]}")
+            print("[TRACE] Partidos activos detectados:", [f"{p['local']} vs {p['visitante']}" for p in partidos_activos])
         if not partidos_activos:
             print(f"[INFO] Ningún partido ha empezado aún a las {ahora.strftime('%H:%M:%S')}. Reintento en 10 minutos...")
             time.sleep(600)
