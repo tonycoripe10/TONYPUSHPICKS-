@@ -144,12 +144,15 @@ def monitorear_eventos():
 
             if fixture_id not in estados_previos:
                 print(f"[TRACE] Primer estado del partido {fixture_id}: {status}")
-                if status in ESTADOS_EN_JUEGO:
-                    enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
-                elif status in ["FT", "CANCELLED"]:
-                    mensaje = f"⚠️ *{partido['local']} vs {partido['visitante']}* no se jugará. Estado: {status}"
-                    enviar_mensaje(mensaje)
-                    partidos_pendientes.remove(partido)
+            if status in ESTADOS_EN_JUEGO:
+                print(f"[INFO] Detectado partido EN JUEGO por primera vez: {partido['local']} vs {partido['visitante']}")
+                enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
+            else:
+                print(f"[DEBUG] Estado actual NO es de juego ({status}), no se notifica inicio.")
+            if status in ["FT", "CANCELLED"]:
+                mensaje = f"⚠️ *{partido['local']} vs {partido['visitante']}* no se jugará. Estado: {status}"
+                enviar_mensaje(mensaje)
+                partidos_pendientes.remove(partido)
                 estados_previos[fixture_id] = status
                 continue
 
