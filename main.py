@@ -129,10 +129,9 @@ def monitorear_eventos():
             partidos_activos.append(p)
             print(f"[TRACE] Partidos activos detectados: {[f'{p['local']} vs {p['visitante']}' for p in partidos_activos]}")
         if not partidos_activos:
-            print("[INFO] Ningún partido ha empezado aún. Reintento en 10 minutos...")
+            print(f"[INFO] Ningún partido ha empezado aún a las {ahora.strftime('%H:%M:%S')}. Reintento en 10 minutos...")
             time.sleep(600)
             continue
-
         for partido in partidos_activos:
             fixture_id = partido["id"]
             fixture = obtener_fixture(fixture_id)
