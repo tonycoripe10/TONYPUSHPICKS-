@@ -144,7 +144,8 @@ def monitorear_eventos():
 
             status = fixture.get("status", {}).get("state")
             estado_anterior = estados_previos.get(fixture_id)
-
+                print(f"[DEBUG] Estado recibido del fixture {fixture_id}: {status}")
+            
             if fixture_id not in estados_previos:
                 print(f"[TRACE] Primer estado del partido {fixture_id}: {status}")
                 if status in ESTADOS_EN_JUEGO:
