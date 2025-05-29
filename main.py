@@ -143,6 +143,7 @@ def monitorear_eventos():
                 continue
 
             status = fixture.get("status", {}).get("state")
+            print(f"[DEPURACIÓN] Status recibido: {status} para partido {partido['local']} vs {partido['visitante']}")
             estado_anterior = estados_previos.get(fixture_id)
             print(f"[DEBUG] Estado recibido del fixture {fixture_id}: {status}")
 
