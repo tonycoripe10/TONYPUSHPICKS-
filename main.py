@@ -139,6 +139,10 @@ def monitorear_eventos():
             fixture_id = partido["id"]
             fixture = obtener_fixture(fixture_id)
 
+            # ⬇️ NUEVOS PRINTS DE DEPURACIÓN
+            print(f"[DEBUG] fixture completo recibido: {fixture}")
+            print(f"[DEBUG] fixture.get('status'): {fixture.get('status')}")
+
             if not fixture:
                 continue
 
