@@ -144,6 +144,8 @@ def monitorear_eventos():
             print(f"[DEBUG] fixture.get('status'): {fixture.get('status')}")
 
             if not fixture:
+                print(f"[AVISO] No se pudo obtener información del partido {fixture_id}. Se eliminará del monitoreo.")
+                partidos_pendientes.remove(partido)
                 continue
 
             status = fixture.get("status", {}).get("state")
