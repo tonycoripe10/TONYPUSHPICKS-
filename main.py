@@ -125,7 +125,7 @@ def monitorear_eventos():
         partidos_activos = []
         for p in partidos_pendientes:
             print(f"[HORA] Partido {p['id']} - Programado a {p['hora']} | Ahora: {ahora}")
-            if p["hora"] - datetime.timedelta(minutes=5) <= ahora:
+            if ahora >= p["hora"] - datetime.timedelta(minutes=5):
                 partidos_activos.append(p)
 
         print("[TRACE] Partidos activos detectados:", [f"{p['local']} vs {p['visitante']}" for p in partidos_activos])
