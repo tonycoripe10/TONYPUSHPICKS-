@@ -252,4 +252,8 @@ def enviar_partidos():
 
 if __name__ == "__main__":
     enviar_partidos()
-    monitorear_eventos()
+    try:
+        monitorear_eventos()
+    except Exception as e:
+        print(f"[CRÍTICO] El bot se ha detenido por un error inesperado: {e}") 
+    
