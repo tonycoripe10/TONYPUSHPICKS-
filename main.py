@@ -123,15 +123,18 @@ def monitorear_eventos():
         ahora = datetime.datetime.now(madrid)
         print(f"[TRACE] Verificando eventos a las {ahora.strftime('%H:%M:%S')}")
         partidos_activos = []
-    for p in partidos_pendientes:
-        print(f"[HORA] Partido {p['id']} - Programado a {p['hora']} | Ahora: {ahora}")
-        if p["hora"] - datetime.timedelta(minutes=5) <= ahora:
-            partidos_activos.append(p)
-            print("[TRACE] Partidos activos detectados:", [f"{p['local']} vs {p['visitante']}" for p in partidos_activos])
+        for p in partidos_pendientes:
+            print(f"[HORA] Partido {p['id']} - Programado a {p['hora']} | Ahora: {ahora}")
+            if p["hora"] - datetime.timedelta(minutes=5) <= ahora:
+                partidos_activos.append(p)
+
+        print("[TRACE] Partidos activos detectados:", [f"{p['local']} vs {p['visitante']}" for p in partidos_activos])
+
         if not partidos_activos:
             print(f"[INFO] Ningún partido ha empezado aún a las {ahora.strftime('%H:%M:%S')}. Reintento en 10 minutos...")
             time.sleep(600)
             continue
+
         for partido in partidos_activos:
             fixture_id = partido["id"]
             fixture = obtener_fixture(fixture_id)
@@ -144,15 +147,15 @@ def monitorear_eventos():
 
             if fixture_id not in estados_previos:
                 print(f"[TRACE] Primer estado del partido {fixture_id}: {status}")
-            if status in ESTADOS_EN_JUEGO:
-                print(f"[INFO] Detectado partido EN JUEGO por primera vez: {partido['local']} vs {partido['visitante']}")
-                enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
-            else:
-                print(f"[DEBUG] Estado actual NO es de juego ({status}), no se notifica inicio.")
-            if status in ["FT", "CANCELLED"]:
-                mensaje = f"⚠️ *{partido['local']} vs {partido['visitante']}* no se jugará. Estado: {status}"
-                enviar_mensaje(mensaje)
-                partidos_pendientes.remove(partido)
+                if status in ESTADOS_EN_JUEGO:
+                    print(f"[INFO] Detectado partido EN JUEGO por primera vez: {partido['local']} vs {partido['visitante']}")
+                    enviar_mensaje(f"🔴 *{partido['local']} vs {partido['visitante']}* ha comenzado.")
+                else:
+                    print(f"[DEBUG] Estado actual NO es de juego ({status}), no se notifica inicio.")
+                if status in ["FT", "CANCELLED"]:
+                    mensaje = f"⚠️ *{partido['local']} vs {partido['visitante']}* no se jugará. Estado: {status}"
+                    enviar_mensaje(mensaje)
+                    partidos_pendientes.remove(partido)
                 estados_previos[fixture_id] = status
                 continue
 
@@ -185,7 +188,7 @@ def monitorear_eventos():
 
                 if tipo == "goal":
                     if resultado == "under_review":
-                        mensaje = f"🧐 Posible *GOL* para *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto} *(revisión VAR)*"
+                        mensaje = f"😮 Posible *GOL* para *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto} *(revisión VAR)*"
                     elif resultado == "confirmed":
                         mensaje = f"✅ *GOL CONFIRMADO* de *{equipo}*\n👤 {jugador}\n⏱️ Minuto {minuto}"
                     elif resultado == "cancelled":
@@ -197,7 +200,7 @@ def monitorear_eventos():
                     continue
 
                 if tipo in ["hit-woodwork"]:
-                    mensaje = f"🥅 *{tipo.upper()}* - {equipo}\n👤 {jugador}\n⏱️ Minuto {minuto}"
+                    mensaje = f"🏕️ *{tipo.upper()}* - {equipo}\n👤 {jugador}\n⏱️ Minuto {minuto}"
                     if enviar_mensaje(mensaje):
                         ya_reportados.add(evento_id)
                     continue
