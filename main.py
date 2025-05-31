@@ -4,6 +4,7 @@ import datetime
 import time
 import telegram
 import pytz
+import json  # <--- añadido
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -109,7 +110,7 @@ def obtener_fixture(fixture_id):
     except Exception as e:
         print(f"[ERROR] Falló la consulta del fixture {fixture_id}: {e}")
         return {}
-        
+
 def monitorear_eventos():
     ya_reportados = set()
     estados_previos = {}
@@ -138,23 +139,23 @@ def monitorear_eventos():
         for partido in partidos_activos:
             fixture_id = partido["id"]
             fixture = obtener_fixture(fixture_id)
-            # Agrega esto para ver eventos completos justo después de obtener el fixture
-            
-eventos = fixture.get('events', [])
-if eventos:
-    print(f"[DEPURACIÓN] Eventos recibidos para fixture {fixture_id}:")
-    for evento in eventos:
-        print(json.dumps(evento, indent=2, ensure_ascii=False))
-else:
-    print(f"[TRACE] No hay eventos para el fixture {fixture_id} en esta verificación.")
-            # ⬇️ NUEVOS PRINTS DE DEPURACIÓN
-            print(f"[DEBUG] fixture completo recibido: {fixture}")
-            print(f"[DEBUG] fixture.get('status'): {fixture.get('status')}")
 
             if not fixture:
                 print(f"[AVISO] No se pudo obtener información del partido {fixture_id}. Se eliminará del monitoreo.")
                 partidos_pendientes.remove(partido)
                 continue
+
+            # Imprimir eventos completos
+            eventos = fixture.get('events', [])
+            if eventos:
+                print(f"[DEPURACIÓN] Eventos recibidos para fixture {fixture_id}:")
+                for evento in eventos:
+                    print(json.dumps(evento, indent=2, ensure_ascii=False))
+            else:
+                print(f"[TRACE] No hay eventos para el fixture {fixture_id} en esta verificación.")
+
+            print(f"[DEBUG] fixture completo recibido: {fixture}")
+            print(f"[DEBUG] fixture.get('status'): {fixture.get('status')}")
 
             status = fixture.get("state", {}).get("state")
             print(f"[DEPURACIÓN] Status recibido: {status} para partido {partido['local']} vs {partido['visitante']}")
@@ -170,7 +171,6 @@ else:
                     mensaje = f"⚠️ *{partido['local']} vs {partido['visitante']}* no se jugará. Estado: {status}"
                     enviar_mensaje(mensaje)
                     partidos_pendientes.remove(partido)
-
                 estados_previos[fixture_id] = status
                 continue
 
@@ -186,8 +186,8 @@ else:
             if status not in ESTADOS_EN_JUEGO:
                 continue
 
-            for evento in fixture.get("events", []):
-                print(f"[TRACE] Eventos encontrados: {len(fixture.get('events', []))}")
+            for evento in eventos:
+                print(f"[TRACE] Eventos encontrados: {len(eventos)}")
                 evento_id = evento.get("id")
                 if not evento_id or evento_id in ya_reportados:
                     continue
@@ -263,5 +263,4 @@ if __name__ == "__main__":
     try:
         monitorear_eventos()
     except Exception as e:
-        print(f"[CRÍTICO] El bot se ha detenido por un error inesperado: {e}") 
-    
+        print(f"[CRÍTICO] El bot se ha detenido por un error inesperado: {e}")
