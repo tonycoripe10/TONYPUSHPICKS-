@@ -109,7 +109,16 @@ def obtener_fixture(fixture_id):
     except Exception as e:
         print(f"[ERROR] Falló la consulta del fixture {fixture_id}: {e}")
         return {}
+        # Obtener eventos si existen
+        eventos = fixture.get('events', [])
 
+    # Imprimir eventos completos si hay al menos uno
+    if eventos:
+        print(f"[DEPURACIÓN] Eventos recibidos para fixture {fixture_id}:")
+        for evento in eventos:
+            print(json.dumps(evento, indent=2, ensure_ascii=False))
+    else:
+        print(f"[TRACE] No hay eventos para el fixture {fixture_id} en esta verificación.")
 def monitorear_eventos():
     ya_reportados = set()
     estados_previos = {}
