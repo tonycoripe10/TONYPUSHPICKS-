@@ -64,7 +64,7 @@ def obtener_partidos():
     mensaje = f"📆 *Partidos del día para hoy* ({hoy_es}):\n\n"
 
     for partido in partidos_totales:
-        estado = partido.get("status", {}).get("state", "")
+        estado = partido.get("state", {}).get("state", "")
         if estado in ["FT", "CANCELLED", "POSTPONED", "AWARDED"]:
             continue
 
@@ -148,7 +148,7 @@ def monitorear_eventos():
                 partidos_pendientes.remove(partido)
                 continue
 
-            status = fixture.get("status", {}).get("state")
+            status = fixture.get("state", {}).get("state")
             print(f"[DEPURACIÓN] Status recibido: {status} para partido {partido['local']} vs {partido['visitante']}")
             estado_anterior = estados_previos.get(fixture_id)
             print(f"[DEBUG] Estado recibido del fixture {fixture_id}: {status}")
